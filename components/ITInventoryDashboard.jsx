@@ -2,7 +2,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Storage que funciona em HTTP/Chrome/Edge — tenta localStorage, cai para memória
 const _mem = {};
 const safeStorage = {
   getItem: (k) => { try { return localStorage.getItem(k); } catch { return _mem[k] ?? null; } },
@@ -23,11 +22,6 @@ const supabase = createClient(
   }
 );
 
-// Auth via Supabase Auth (senhas com hash bcrypt, RLS ativo)
-
-// ══════════════════════════════════════════════════════════════════
-//  DADOS MESTRES
-// ══════════════════════════════════════════════════════════════════
 const CATEGORIAS_ITENS = ["Monitor", "Teclado", "Mouse", "Notebook", "HUB", "Suporte de Tela", "Capa Notebook", "Fone/Headset", "Computador", "Rede", "Periférico"];
 const DEPARTAMENTOS = ["Todos", "Engenharia", "Marketing", "Financeiro", "RH", "Operações", "TI", "Diretoria"];
 const STATUS_LIST = ["Em Uso", "Disponível", "Manutenção", "Desativado"];
@@ -47,9 +41,6 @@ const CAT_ICONS = {
   Computador: "🖥️", Rede: "📡", "Periférico": "🖱️",
 };
 
-// ══════════════════════════════════════════════════════════════════
-//  TEMA
-// ══════════════════════════════════════════════════════════════════
 function useTheme(dark) {
   return {
     bg: dark ? "#0F172A" : "#F8FAFC",
@@ -70,9 +61,6 @@ function useTheme(dark) {
   };
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  COMPONENTES UTILITÁRIOS
-// ══════════════════════════════════════════════════════════════════
 function Btn({ onClick, children, variant = "primary", small, t, disabled }) {
   const styles = {
     primary: { background: t.accent, color: "#fff", border: "none" },
@@ -176,9 +164,6 @@ function Table({ cols, rows, onRowClick, emptyMsg, t }) {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  TELA DE LOGIN — Supabase Auth
-// ══════════════════════════════════════════════════════════════════
 function TelaLogin({ onLogin }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -266,10 +251,6 @@ function TelaLogin({ onLogin }) {
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════════
-//  FORMULÁRIO DE ITEM
-// ══════════════════════════════════════════════════════════════════
 function FormItem({ item, onSave, onClose, t }) {
   const [f, setF] = useState({
     nome: item?.nome || "", categoria: item?.categoria || "Notebook", marca: item?.marca || "",
@@ -320,9 +301,6 @@ function FormItem({ item, onSave, onClose, t }) {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  MODAL DE MOVIMENTAÇÃO
-// ══════════════════════════════════════════════════════════════════
 function ModalMovimento({ tipo, itemInicial, itens, onSave, onClose, t }) {
   const isEntrada = tipo === "entrada";
   const [busca, setBusca] = useState(itemInicial?.nome ?? "");
@@ -457,16 +435,10 @@ function ModalMovimento({ tipo, itemInicial, itens, onSave, onClose, t }) {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  MAPPERS banco → app
-// ══════════════════════════════════════════════════════════════════
 function mapEquip(r) { return { id: r.id, nome: r.nome || "", categoria: r.categoria || "", marca: r.marca || "—", modelo: r.modelo || "—", serial: r.serial || "—", patrimonio: r.patrimonio || "—", funcionario: r.funcionario || "—", departamento: r.departamento || "—", status: r.status || "Disponível", dataCompra: r.data_compra || "", notas: r.notas || "", qtdTotal: r.qtd_total || 0, qtdDisponivel: r.qtd_disponivel || 0 }; }
 function mapMov(r) { return { id: r.id, data: r.data || hoje(), tipo: r.tipo, itemId: r.equipamento_id, itemNome: r.item_nome || "", serial: r.serial || "—", patrimonio: r.patrimonio || "—", categoria: r.categoria || "—", qty: r.qty || 0, qtdTotal: r.qtd_total, qtdDisponivel: r.qtd_disponivel, usuario: r.operador || "", funcionario: r.funcionario || "—", depto: r.departamento || "—", obs: r.obs || "" }; }
 function mapUsuario(r) { return { id: r.id, authId: r.auth_id, usuario: r.usuario, nome: r.nome || r.usuario, perfil: r.perfil || "viewer", avatar: r.perfil === "super_admin" ? "⚡" : r.perfil === "admin" ? "👑" : "👤", ativo: r.ativo !== false, ultimoLogin: r.ultimo_login || null, email: r.email || "" }; }
 
-// ══════════════════════════════════════════════════════════════════
-//  TELA PRINCIPAL
-// ══════════════════════════════════════════════════════════════════
 export default function App() {
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("ti_dark") === "1"; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem("ti_dark", dark ? "1" : "0"); } catch { } }, [dark]);
@@ -495,14 +467,13 @@ export default function App() {
   const [novoUserForm, setNovoUserForm] = useState({ email: "", usuario: "", nome: "", senha: "", perfil: "operador" });
   const [novoUserMsg, setNovoUserMsg] = useState("");
   const [criandoUser, setCriandoUser] = useState(false);
-  const [editandoNome, setEditandoNome] = useState(null); // {id, nome}
+  const [editandoNome, setEditandoNome] = useState(null); 
   const [novoNome, setNovoNome] = useState("");
 
-  // ── Auth: getSession para inicializar + onAuthStateChange para mudanças
   useEffect(() => {
     let ativo = true;
 
-    // Inicializa direto com getSession (confiável no Next.js App Router)
+ 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!ativo) return;
       if (session?.user) {
@@ -513,7 +484,6 @@ export default function App() {
       }
     });
 
-    // Escuta apenas mudanças posteriores
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!ativo) return;
       console.log("[Auth]", event, session?.user?.email);
@@ -556,7 +526,6 @@ export default function App() {
             await supabase.from("usuarios_app").update({ ultimo_login: agora }).eq("auth_id", authUserObj.id);
             setSessao({ ...perfil, email: perfil.email || authUserObj.email, ultimoLogin: agora });
           } else {
-            // Perfil não encontrado — usuário existe no Auth mas não em usuarios_app
             setSessao({ id: null, authId: authUserObj.id, usuario: authUserObj.email, nome: authUserObj.email, perfil: "super_admin", avatar: "⚡", ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString() });
           }
         }
@@ -565,7 +534,6 @@ export default function App() {
     setCarregando(false);
   }
 
-  // ── useMemo hooks (SEMPRE antes de qualquer return condicional)
   const stats = useMemo(() => ({
     total: itens.length,
     emUso: itens.filter(a => a.status === "Em Uso").length,
@@ -596,7 +564,6 @@ export default function App() {
     return { cat, total: lista.length, unidades: lista.reduce((s, i) => s + i.qtdTotal, 0), disponiveis: lista.reduce((s, i) => s + i.qtdDisponivel, 0) };
   }).filter(r => r.total > 0), [itens]);
 
-  // ── Returns condicionais (APÓS todos os hooks)
   if (carregando) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0F172A", flexDirection: "column", gap: 16, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <div style={{ fontSize: 36 }}>📦</div>
@@ -608,12 +575,10 @@ export default function App() {
 
   if (!sessao) return <TelaLogin />;
 
-  // ── Permissões (definidas APÓS o return de login)
   const podeSuperAdmin = sessao.perfil === "super_admin";
   const podeAdmin = sessao.perfil === "admin" || sessao.perfil === "super_admin";
   const podeEditar = ["super_admin", "admin", "operador"].includes(sessao.perfil);
 
-  // ── Handlers
   const handleSaveItem = async (form) => {
     const payload = {
       nome: form.nome, categoria: form.categoria, marca: form.marca, modelo: form.modelo,
@@ -674,7 +639,7 @@ export default function App() {
     const novoAtivo = !u.ativo;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      // Atualiza no Supabase Auth via Edge Function (se tiver auth_id)
+
       if (u.authId) {
         await fetch("https://amwlloisddlqkvphupol.supabase.co/functions/v1/smooth-action", {
           method: "POST",
@@ -682,7 +647,6 @@ export default function App() {
           body: JSON.stringify({ action: novoAtivo ? "enable" : "disable", auth_id: u.authId }),
         });
       }
-      // Atualiza perfil local
       const { error } = await supabase.from("usuarios_app").update({ ativo: novoAtivo }).eq("id", u.id);
       if (!error) setUsuarios(prev => prev.map(x => x.id === u.id ? { ...x, ativo: novoAtivo } : x));
     } catch (err) { console.error("Erro ao toggle usuário:", err); }
@@ -759,7 +723,6 @@ export default function App() {
 
   const sel = { padding: "6px 10px", borderRadius: 8, border: `1px solid ${t.borderMed}`, fontSize: 13, color: t.text, background: t.inputBg, cursor: "pointer", fontFamily: "inherit", outline: "none" };
 
-  // ── Renders de página
   const renderOverview = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ background: `linear-gradient(135deg,${t.accent},#8B5CF6)`, borderRadius: 16, padding: "20px 24px", color: "#fff" }}>
