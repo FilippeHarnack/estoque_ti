@@ -455,6 +455,9 @@ export default function App() {
   const [catFil, setCatFil] = useState("Todas");
   const [statusFil, setStatusFil] = useState("Todos");
   const [deptFil, setDeptFil] = useState("Todos");
+  // ── NOVO: filtro por funcionário ──────────────────────────────
+  const [funcFil, setFuncFil] = useState("Todos");
+  // ─────────────────────────────────────────────────────────────
   const [selecionado, setSelecionado] = useState(null);
   const [editando, setEditando] = useState(null);
   const [adicionando, setAdicionando] = useState(false);
@@ -467,13 +470,12 @@ export default function App() {
   const [novoUserForm, setNovoUserForm] = useState({ email: "", usuario: "", nome: "", senha: "", perfil: "operador" });
   const [novoUserMsg, setNovoUserMsg] = useState("");
   const [criandoUser, setCriandoUser] = useState(false);
-  const [editandoNome, setEditandoNome] = useState(null); 
+  const [editandoNome, setEditandoNome] = useState(null);
   const [novoNome, setNovoNome] = useState("");
 
   useEffect(() => {
     let ativo = true;
 
- 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!ativo) return;
       if (session?.user) {
@@ -544,11 +546,24 @@ export default function App() {
     dispUnid: itens.reduce((s, a) => s + a.qtdDisponivel, 0),
   }), [itens]);
 
+  // ── NOVO: lista dinâmica de funcionários ──────────────────────
+  const funcionarios = useMemo(() => {
+    const lista = [...new Set(
+      itens.map(i => i.funcionario).filter(f => f && f !== "—")
+    )].sort();
+    return ["Todos", ...lista];
+  }, [itens]);
+  // ─────────────────────────────────────────────────────────────
+
   const filtrados = useMemo(() => itens.filter(a => {
     const q = busca.toLowerCase();
     const mB = !q || [a.nome, a.marca, a.modelo, a.serial, a.funcionario, a.departamento].some(v => v?.toLowerCase().includes(q));
-    return mB && (catFil === "Todas" || a.categoria === catFil) && (statusFil === "Todos" || a.status === statusFil) && (deptFil === "Todos" || a.departamento === deptFil);
-  }), [itens, busca, catFil, statusFil, deptFil]);
+    return mB
+      && (catFil === "Todas" || a.categoria === catFil)
+      && (statusFil === "Todos" || a.status === statusFil)
+      && (deptFil === "Todos" || a.departamento === deptFil)
+      && (funcFil === "Todos" || a.funcionario === funcFil); // ← NOVO
+  }), [itens, busca, catFil, statusFil, deptFil, funcFil]);
 
   const histFiltrado = useMemo(() => {
     const agora = new Date(); const hj = hoje();
@@ -797,8 +812,19 @@ export default function App() {
         <select value={catFil} onChange={e => setCatFil(e.target.value)} style={sel}>{CAT_FILTROS.map(o => <option key={o}>{o}</option>)}</select>
         <select value={statusFil} onChange={e => setStatusFil(e.target.value)} style={sel}>{STATUS_FILTROS.map(o => <option key={o}>{o}</option>)}</select>
         <select value={deptFil} onChange={e => setDeptFil(e.target.value)} style={sel}>{DEPARTAMENTOS.map(o => <option key={o}>{o}</option>)}</select>
-        {(catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || busca) && (
-          <button onClick={() => { setCatFil("Todas"); setStatusFil("Todos"); setDeptFil("Todos"); setBusca(""); }} style={{ padding: "5px 11px", borderRadius: 8, border: `1px solid ${t.dangerBdr}`, background: t.dangerBg, color: t.danger, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✕ Limpar</button>
+
+        {/* ── NOVO: filtro por funcionário ── */}
+        <select value={funcFil} onChange={e => setFuncFil(e.target.value)} style={{ ...sel, maxWidth: 180 }}>
+          {funcionarios.map(o => (
+            <option key={o} value={o}>
+              {o === "Todos" ? "👤 Todos Funcionários" : `👤 ${o}`}
+            </option>
+          ))}
+        </select>
+        {/* ─────────────────────────────── */}
+
+        {(catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || funcFil !== "Todos" || busca) && (
+          <button onClick={() => { setCatFil("Todas"); setStatusFil("Todos"); setDeptFil("Todos"); setFuncFil("Todos"); setBusca(""); }} style={{ padding: "5px 11px", borderRadius: 8, border: `1px solid ${t.dangerBdr}`, background: t.dangerBg, color: t.danger, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✕ Limpar</button>
         )}
         <span style={{ marginLeft: "auto", fontSize: 12, color: t.textFaint }}>{filtrados.length} item{filtrados.length !== 1 ? "s" : ""}</span>
       </div>
