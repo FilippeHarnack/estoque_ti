@@ -1,6 +1,8 @@
 "use client";
 import { useState, useCallback } from "react";
 import { supabase } from "@/services/supabase";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCubes, faLock, faCircleCheck, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
 export default function TelaLogin() {
   const [email, setEmail]               = useState("");
@@ -43,7 +45,9 @@ export default function TelaLogin() {
       </div>
       <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 8px 32px #6366F155" }}>⬡</div>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", boxShadow: "0 8px 32px #6366F155" }}>
+            <FontAwesomeIcon icon={faCubes} />
+          </div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#F1F5F9", letterSpacing: -0.5 }}>TI Inventário</h1>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748B" }}>Sistema de Gestão de Equipamentos</p>
         </div>
@@ -53,12 +57,14 @@ export default function TelaLogin() {
           </h2>
           {erro && (
             <div style={{ background: "#3f0a0a", border: "1px solid #7f1d1d", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
+              <span style={{ fontSize: 15, color: "#FCA5A5" }}><FontAwesomeIcon icon={faLock} /></span>
               <span style={{ fontSize: 13, color: "#FCA5A5", fontWeight: 500 }}>{erro}</span>
             </div>
           )}
           {resetMsg && (
-            <div style={{ background: "#052e16", border: "1px solid #10B98144", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#10B981", fontWeight: 500 }}>✅ {resetMsg}</div>
+            <div style={{ background: "#052e16", border: "1px solid #10B98144", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#10B981", fontWeight: 500, display: "flex", alignItems: "center", gap: 7 }}>
+              <FontAwesomeIcon icon={faCircleCheck} /> {resetMsg}
+            </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
@@ -74,8 +80,8 @@ export default function TelaLogin() {
                   <input value={senha} onChange={(e) => setSenha(e.target.value)} type={mostrarSenha ? "text" : "password"} placeholder="••••••••" autoComplete="current-password"
                     onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                     style={{ width: "100%", boxSizing: "border-box", padding: "11px 40px 11px 14px", borderRadius: 10, border: "1px solid #475569", background: "#0F172A", fontSize: 14, color: "#F1F5F9", outline: "none", fontFamily: "inherit" }} />
-                  <button onClick={() => setMostrarSenha((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#64748B" }}>
-                    {mostrarSenha ? "🙈" : "👁️"}
+                  <button onClick={() => setMostrarSenha((p) => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "#64748B" }}>
+                    <FontAwesomeIcon icon={mostrarSenha ? faEyeSlash : faEye} />
                   </button>
                 </div>
               </div>
@@ -90,7 +96,9 @@ export default function TelaLogin() {
             </button>
           </div>
         </div>
-        <p style={{ textAlign: "center", fontSize: 11, color: "#334155", marginTop: 16 }}>🔒 Supabase Auth · Senhas criptografadas</p>
+        <p style={{ textAlign: "center", fontSize: 11, color: "#334155", marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+          <FontAwesomeIcon icon={faLock} /> Supabase Auth · Senhas criptografadas
+        </p>
       </div>
     </div>
   );

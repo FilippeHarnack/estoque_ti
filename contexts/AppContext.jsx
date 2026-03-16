@@ -10,25 +10,21 @@ import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUse
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  // ── Theme ──────────────────────────────────────────────────────────────────
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem("ti_dark") === "1"; } catch { return false; }
   });
   useEffect(() => { try { localStorage.setItem("ti_dark", dark ? "1" : "0"); } catch {} }, [dark]);
   const t = useMemo(() => buildTheme(dark), [dark]);
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
   const [sessao, setSessao]       = useState(null);
   const [authUser, setAuthUser]   = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erroDb, setErroDb]       = useState("");
 
-  // ── Data ───────────────────────────────────────────────────────────────────
   const [itens, setItens]         = useState([]);
   const [historico, setHistorico] = useState([]);
   const [usuarios, setUsuarios]   = useState([]);
 
-  // ── Load data ──────────────────────────────────────────────────────────────
   const carregarDados = useCallback(async (authUserObj) => {
     setCarregando(true);
     setErroDb("");
@@ -49,7 +45,7 @@ export function AppProvider({ children }) {
       } else {
         setSessao({
           id: null, authId: authUserObj.id, usuario: authUserObj.email,
-          nome: authUserObj.email, perfil: "super_admin", avatar: "⚡",
+          nome: authUserObj.email, perfil: "super_admin", avatar: "bolt",
           ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString(),
         });
       }
@@ -59,7 +55,6 @@ export function AppProvider({ children }) {
     setCarregando(false);
   }, []);
 
-  // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
     let ativo = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -81,7 +76,6 @@ export function AppProvider({ children }) {
     return () => { ativo = false; subscription.unsubscribe(); };
   }, [carregarDados]);
 
-  // ── Computed ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
     total:      itens.length,
     emUso:      itens.filter((a) => a.status === "Em Uso").length,
@@ -97,12 +91,10 @@ export function AppProvider({ children }) {
     return ["Todos", ...lista];
   }, [itens]);
 
-  // ── Permissions ────────────────────────────────────────────────────────────
   const podeSuperAdmin = sessao?.perfil === "super_admin";
   const podeAdmin      = sessao?.perfil === "admin" || sessao?.perfil === "super_admin";
   const podeEditar     = ["super_admin", "admin", "operador"].includes(sessao?.perfil);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSaveItem = useCallback(async (form, editandoItem) => {
     const payload = buildEquipPayload(form);
     if (editandoItem) {
@@ -168,7 +160,7 @@ export function AppProvider({ children }) {
     if (senha.length < 8) throw new Error("Senha deve ter pelo menos 8 caracteres.");
     if (!/[A-Z]/.test(senha)) throw new Error("Senha deve conter ao menos uma maiúscula.");
     if (!/[0-9]/.test(senha)) throw new Error("Senha deve conter ao menos um número.");
-    const avatar = perfil === "super_admin" ? "⚡" : perfil === "admin" ? "👑" : "👤";
+    const avatar = perfil === "super_admin" ? "bolt" : perfil === "admin" ? "crown" : "user";
     const novoUser = await createUsuario({ ...form, avatar });
     setUsuarios((prev) => [...prev, novoUser]);
     return novoUser;
@@ -178,17 +170,11 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      // theme
       dark, setDark, t,
-      // auth
       sessao, authUser, carregando, erroDb,
-      // data
       itens, historico, usuarios,
-      // computed
       stats, funcionarios,
-      // permissions
       podeSuperAdmin, podeAdmin, podeEditar,
-      // handlers
       handleSaveItem, handleDelete, handleMovimento,
       handleToggleUsuario, handleResetUserPassword,
       handleRenomearUsuario, handleAlterarSenha,

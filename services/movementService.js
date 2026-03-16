@@ -29,7 +29,7 @@ export async function processarMovimento({ tipo, itemSel, itens, nomeItem, seria
 
   if (itemExistente) {
     const novas = isEntrada
-      ? { qtd_total: itemExistente.qtdTotal + qty, qtd_disponivel: itemExistente.qtdDisponivel + qty, status: "Disponível" }
+      ? { qtd_total: itemExistente.qtdTotal + qty, qtd_disponivel: itemExistente.qtdDisponivel + qty, status: "Disponível", funcionario: "—", departamento: "—" }
       : {
           qtd_disponivel: itemExistente.qtdDisponivel - qty,
           funcionario: func || itemExistente.funcionario,
