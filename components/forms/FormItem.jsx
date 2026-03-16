@@ -35,8 +35,6 @@ export default function FormItem({ item, onSave, onClose, t }) {
         <SelectField label="Status"            value={f.status}       onChange={(e) => s("status", e.target.value)}        opts={STATUS_LIST} t={t} half />
         <InputField label="Data de Compra"     value={f.dataCompra}   onChange={(e) => s("dataCompra", e.target.value)}    type="date" t={t} half />
       </div>
-
-      {/* Stock control */}
       <div style={{ background: t.bg, borderRadius: 12, padding: "14px 16px", border: `1px solid ${t.border}` }}>
         <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>Controle de Estoque</p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
