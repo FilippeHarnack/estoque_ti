@@ -21,7 +21,7 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
   const [obs, setObs]             = useState("");
 
   const maxQty   = isEntrada ? 9999 : (itemSel?.qtdDisponivel ?? 0);
-  const canSave  = isEntrada ? (busca.trim().length > 0 && qty >= 1) : (!!itemSel && qty >= 1 && qty <= maxQty);
+  const canSave  = isEntrada ? (busca.trim().length > 0 && qty >= 1) : (!!itemSel && qty >= 1 && qty <= maxQty && func.trim().length > 0);
   const inp = { padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, fontSize: 14, color: t.text, background: t.inputBg, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" };
   const lbl = { fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 };
 
@@ -140,9 +140,9 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
         {isEntrada && (
           <div>
             <label style={lbl}>
-              Recebido de <span style={{ fontWeight: 400, textTransform: "none", color: t.textFaint }}>(funcionário que devolveu, fornecedor, etc.)</span>
+              Recebido de / Retirado de <span style={{ fontWeight: 400, textTransform: "none", color: t.textFaint }}>(quem devolveu, funcionário demitido, fornecedor…)</span>
             </label>
-            <input value={func} onChange={(e) => setFunc(e.target.value)} placeholder="Ex: João Silva, Fornecedor ABC…" style={inp} />
+            <input value={func} onChange={(e) => setFunc(e.target.value)} placeholder="Ex: Lara Souza, Gustavo, Fornecedor ABC…" style={inp} />
           </div>
         )}
 

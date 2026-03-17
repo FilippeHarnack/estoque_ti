@@ -5,3 +5,4 @@ export { default as SelectField } from "./SelectField";
 export { default as StatusBadge } from "./StatusBadge";
 export { default as StatCard }    from "./StatCard";
 export { default as Table }       from "./Table";
+export { default as UserAvatar }  from "./UserAvatar";

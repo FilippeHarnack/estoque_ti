@@ -58,6 +58,37 @@ export async function createUsuario({ email, usuario, nome, senha, perfil, avata
   return mapUsuario(json.user);
 }
 
+function resizeToBase64(file, size = 128) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadAvatar(authId, file) {
+  const base64 = await resizeToBase64(file, 128);
+  const { error } = await supabase.from("usuarios_app").update({ avatar: base64 }).eq("auth_id", authId);
+  if (error) throw error;
+  return base64;
+}
+
 export async function changePassword(novaSenha) {
   const { error } = await supabase.auth.updateUser({ password: novaSenha });
   if (error) throw error;

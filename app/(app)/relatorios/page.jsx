@@ -7,11 +7,171 @@ import { CATEGORIAS_ITENS, CAT_ICONS, hoje } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowDown, faArrowUp, faBriefcase, faWrench, faChartBar, faUser,
+  faFileArrowDown, faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 
+/* ─── Gráfico SVG ─── */
+function BarChart({ dados, t }) {
+  const barW = 22;
+  const gap  = 8;
+  const groupW = barW * 2 + gap + 18;
+  const chartH = 160;
+  const maxVal = Math.max(...dados.map((d) => Math.max(d.entradas, d.saidas)), 1);
+
+  return (
+    <svg width={dados.length * groupW + 40} height={chartH + 50} style={{ overflow: "visible" }}>
+      {/* grid lines */}
+      {[0.25, 0.5, 0.75, 1].map((f) => (
+        <line key={f} x1={30} x2={dados.length * groupW + 30} y1={chartH - f * chartH} y2={chartH - f * chartH}
+          stroke={t.border} strokeWidth={1} strokeDasharray="4 3" />
+      ))}
+      {dados.map((d, i) => {
+        const x   = 30 + i * groupW;
+        const hE  = (d.entradas / maxVal) * chartH;
+        const hS  = (d.saidas   / maxVal) * chartH;
+        return (
+          <g key={d.cat}>
+            {/* entrada bar */}
+            <rect x={x} y={chartH - hE} width={barW} height={hE || 2} rx={4} fill="#10B981" opacity={0.85} />
+            {d.entradas > 0 && (
+              <text x={x + barW / 2} y={chartH - hE - 5} textAnchor="middle" fontSize={10} fill="#10B981" fontWeight={700}>{d.entradas}</text>
+            )}
+            {/* saida bar */}
+            <rect x={x + barW + gap} y={chartH - hS} width={barW} height={hS || 2} rx={4} fill="#EF4444" opacity={0.85} />
+            {d.saidas > 0 && (
+              <text x={x + barW + gap + barW / 2} y={chartH - hS - 5} textAnchor="middle" fontSize={10} fill="#EF4444" fontWeight={700}>{d.saidas}</text>
+            )}
+            {/* label */}
+            <text x={x + barW + gap / 2} y={chartH + 16} textAnchor="middle" fontSize={10} fill={t.textMuted}
+              style={{ maxWidth: groupW - 4 }}>
+              {d.cat.length > 7 ? d.cat.slice(0, 6) + "…" : d.cat}
+            </text>
+          </g>
+        );
+      })}
+      {/* legenda */}
+      <rect x={30} y={chartH + 30} width={10} height={10} rx={2} fill="#10B981" />
+      <text x={44} y={chartH + 40} fontSize={11} fill={t.textMuted}>Entradas</text>
+      <rect x={110} y={chartH + 30} width={10} height={10} rx={2} fill="#EF4444" />
+      <text x={124} y={chartH + 40} fontSize={11} fill={t.textMuted}>Saídas</text>
+    </svg>
+  );
+}
+
+/* ─── Download CSV ─── */
+function downloadCSV(historico, periodo, label) {
+  const linhas = [
+    ["Data", "Tipo", "Item", "Categoria", "Qtd", "Funcionário", "Departamento", "Operador", "Observação"],
+    ...historico.map((h) => [h.data, h.tipo === "entrada" ? "Entrada" : "Saída", h.itemNome, h.categoria, h.qty, h.funcionario, h.depto, h.usuario, h.obs || ""]),
+  ];
+  const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `relatorio_${periodo}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─── Modal Relatório ─── */
+function RelatorioModal({ t, historico, periodo, onClose }) {
+  const dadosGrafico = useMemo(() => CATEGORIAS_ITENS.map((cat) => ({
+    cat,
+    entradas: historico.filter((h) => h.tipo === "entrada" && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+    saidas:   historico.filter((h) => h.tipo === "saida"   && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+  })).filter((d) => d.entradas > 0 || d.saidas > 0), [historico]);
+
+  const totalE = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
+  const totalS = historico.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0);
+  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros" }[periodo];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: t.surface, borderRadius: 20, border: `1px solid ${t.border}`, width: "100%", maxWidth: 760, maxHeight: "90vh", overflowY: "auto", padding: "28px 32px" }}>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>Relatório de Movimentações</div>
+            <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>{labelPeriodo}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => downloadCSV(historico, periodo)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: t.accent, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <FontAwesomeIcon icon={faFileArrowDown} /> Baixar CSV
+            </button>
+            <button onClick={onClose}
+              style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.bg, color: t.textMuted, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FontAwesomeIcon icon={faXmark} />
+            </button>
+          </div>
+        </div>
+
+        {/* Stats resumo */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+          {[
+            { label: "Total Entradas", value: totalE, color: "#10B981", bg: "#052e16" },
+            { label: "Total Saídas",   value: totalS, color: "#EF4444", bg: "#450a0a" },
+            { label: "Saldo",          value: totalE - totalS, color: totalE >= totalS ? "#10B981" : "#EF4444", bg: t.bg },
+          ].map((s) => (
+            <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: 12, padding: "14px 18px", border: `1px solid ${t.border}` }}>
+              <div style={{ fontSize: 11, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value > 0 ? "+" : ""}{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Gráfico */}
+        {dadosGrafico.length > 0 && (
+          <div style={{ background: t.bg, borderRadius: 14, padding: "18px 16px", border: `1px solid ${t.border}`, marginBottom: 24, overflowX: "auto" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 16 }}>Movimentações por Categoria</div>
+            <BarChart dados={dadosGrafico} t={t} />
+          </div>
+        )}
+
+        {/* Tabela detalhada */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>Registros detalhados</div>
+        <div style={{ border: `1px solid ${t.border}`, borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: t.bg }}>
+                {["Data", "Tipo", "Item", "Qtd", "Funcionário", "Operador"].map((h) => (
+                  <th key={h} style={{ padding: "9px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {historico.length === 0 && (
+                <tr><td colSpan={6} style={{ padding: "20px 12px", textAlign: "center", color: t.textFaint, fontSize: 13 }}>Nenhum registro no período.</td></tr>
+              )}
+              {historico.map((h, i) => (
+                <tr key={h.id} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
+                  <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.data}</td>
+                  <td style={{ padding: "9px 12px" }}>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: h.tipo === "entrada" ? "#10B981" : "#EF4444", background: h.tipo === "entrada" ? "#052e16" : "#450a0a", padding: "2px 8px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <FontAwesomeIcon icon={h.tipo === "entrada" ? faArrowDown : faArrowUp} />{h.tipo === "entrada" ? "Entrada" : "Saída"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "9px 12px", fontSize: 13, color: t.text, fontWeight: 500 }}>{h.itemNome}</td>
+                  <td style={{ padding: "9px 12px", fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? "#10B981" : "#EF4444" }}>{h.tipo === "entrada" ? "+" : "-"}{h.qty}</td>
+                  <td style={{ padding: "9px 12px", fontSize: 12, color: t.textMuted }}>{h.funcionario === "—" ? "—" : h.funcionario}</td>
+                  <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.usuario}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Página principal ─── */
 export default function RelatoriosPage() {
   const { t, dark, itens, historico, stats } = useApp();
-  const [periodo, setPeriodo] = useState("todos");
+  const [periodo, setPeriodo]         = useState("mes");
+  const [modalAberto, setModalAberto] = useState(false);
 
   const histFiltrado = useMemo(() => {
     const agora = new Date(); const hj = hoje();
@@ -27,9 +187,16 @@ export default function RelatoriosPage() {
     return { cat, total: lista.length, unidades: lista.reduce((s, i) => s + i.qtdTotal, 0), disponiveis: lista.reduce((s, i) => s + i.qtdDisponivel, 0) };
   }).filter((r) => r.total > 0), [itens]);
 
+  const headerActions = (
+    <button onClick={() => setModalAberto(true)}
+      style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 16px", borderRadius: 10, background: t.accent, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+      <FontAwesomeIcon icon={faFileArrowDown} /> Baixar Relatório
+    </button>
+  );
+
   return (
     <>
-      <Header title="Relatórios" />
+      <Header title="Relatórios" actions={headerActions} />
       <main style={{ flex: 1, overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -119,6 +286,10 @@ export default function RelatoriosPage() {
           </div>
         </div>
       </main>
+
+      {modalAberto && (
+        <RelatorioModal t={t} historico={histFiltrado} periodo={periodo} onClose={() => setModalAberto(false)} />
+      )}
     </>
   );
 }

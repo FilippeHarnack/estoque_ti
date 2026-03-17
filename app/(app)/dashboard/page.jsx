@@ -23,7 +23,7 @@ export default function DashboardPage() {
           <div style={{ background: `linear-gradient(135deg,${t.accent},#8B5CF6)`, borderRadius: 16, padding: "20px 24px", color: "#fff" }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Olá, {sessao?.nome?.split(" ")[0]}!</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
-              Perfil: <strong style={{ textTransform: "capitalize" }}>{sessao?.perfil}</strong> · {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+              Perfil: <strong style={{ textTransform: "capitalize" }}>{sessao?.perfil}</strong> · {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })} · {new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
             </div>
           </div>
 

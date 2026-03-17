@@ -7,7 +7,7 @@ import {
   faChartBar, faShieldHalved, faCubes, faRightFromBracket,
   faChevronLeft, faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { AVATAR_ICON_MAP } from "@/lib/constants";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 const NAV_ITEMS = [
   { href: "/dashboard",      icon: faHouse,         label: "Visão Geral"   },
@@ -143,16 +143,9 @@ export default function Sidebar({ collapsed, onToggle }) {
         flexDirection: collapsed ? "column" : "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: collapsed ? 8 : 8,
+        gap: collapsed ? 10 : 8,
       }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 8,
-          background: `linear-gradient(135deg,${t.accent},#8B5CF6)`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13, flexShrink: 0, color: "#fff",
-        }}>
-          <FontAwesomeIcon icon={AVATAR_ICON_MAP[sessao?.avatar] || AVATAR_ICON_MAP.user} />
-        </div>
+        <UserAvatar avatar={sessao?.avatar} t={t} size={32} borderRadius={8} fontSize={14} />
 
         {!collapsed && (
           <div style={{ flex: 1, overflow: "hidden" }}>
@@ -170,7 +163,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             Sair
           </button>
         ) : (
-          <button onClick={handleLogout} title="Sair" style={{ width: 28, height: 28, background: t.dangerBg, border: `1px solid ${t.dangerBdr}`, borderRadius: 8, cursor: "pointer", fontSize: 12, color: t.danger, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
+          <button onClick={handleLogout} title="Sair" style={{ width: 32, height: 32, background: t.dangerBg, border: `1px solid ${t.dangerBdr}`, borderRadius: 8, cursor: "pointer", fontSize: 14, color: t.danger, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
             <FontAwesomeIcon icon={faRightFromBracket} />
           </button>
         )}

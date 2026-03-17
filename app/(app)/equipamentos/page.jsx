@@ -5,7 +5,7 @@ import Header from "@/components/layout/Header";
 import { Btn, Table, StatusBadge, Modal } from "@/components/ui";
 import FormItem from "@/components/forms/FormItem";
 import ModalMovimento from "@/components/forms/ModalMovimento";
-import { CAT_ICONS, CAT_FILTROS, STATUS_FILTROS, DEPARTAMENTOS } from "@/lib/constants";
+import { CAT_ICONS, CAT_FILTROS, STATUS_FILTROS, DEPARTAMENTOS, CATEGORIAS_ITENS } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding } from "@fortawesome/free-solid-svg-icons";
 
@@ -40,6 +40,46 @@ export default function EquipamentosPage() {
       />
       <main style={{ flex: 1, overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* ── Resumo por Categoria ── */}
+          {(() => {
+            const cats = CATEGORIAS_ITENS.map((cat) => {
+              const lista = itens.filter((i) => i.categoria === cat);
+              if (!lista.length) return null;
+              const total = lista.reduce((s, i) => s + i.qtdTotal, 0);
+              const disp  = lista.reduce((s, i) => s + i.qtdDisponivel, 0);
+              const pct   = total ? Math.round((disp / total) * 100) : 0;
+              return { cat, total, disp, pct };
+            }).filter(Boolean);
+            if (!cats.length) return null;
+            return (
+              <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 16px" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>Estoque por Categoria</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+                  {cats.map(({ cat, total, disp, pct }) => {
+                    const cor = pct > 50 ? t.success : pct > 20 ? t.gold : t.danger;
+                    const ativo = catFil === cat;
+                    return (
+                      <button key={cat} onClick={() => setCatFil(ativo ? "Todas" : cat)}
+                        style={{ background: ativo ? `${t.accent}18` : t.bg, border: `1.5px solid ${ativo ? t.accent : t.border}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "border-color 0.15s, background 0.15s" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                          <span style={{ fontSize: 14, color: ativo ? t.accent : t.textMuted }}>
+                            {CAT_ICONS[cat] && <FontAwesomeIcon icon={CAT_ICONS[cat]} />}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: ativo ? t.accent : t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: cor, lineHeight: 1 }}>{disp}</div>
+                        <div style={{ fontSize: 11, color: t.textFaint, marginTop: 2, marginBottom: 8 }}>de {total} disponíveis</div>
+                        <div style={{ height: 4, background: t.border, borderRadius: 10, overflow: "hidden" }}>
+                          <div style={{ width: `${pct}%`, height: "100%", background: cor, borderRadius: 10 }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>

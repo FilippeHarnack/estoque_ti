@@ -5,7 +5,7 @@ import { buildTheme } from "@/lib/theme";
 import { mapUsuario } from "@/lib/mappers";
 import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload } from "@/services/equipmentService";
 import { getAllMovimentos, processarMovimento } from "@/services/movementService";
-import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword } from "@/services/userService";
+import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
 
 const AppContext = createContext(null);
 
@@ -166,6 +166,14 @@ export function AppProvider({ children }) {
     return novoUser;
   }, [usuarios]);
 
+  const handleUploadAvatar = useCallback(async (file) => {
+    if (!authUser) throw new Error("Não autenticado.");
+    const url = await uploadAvatar(authUser.id, file);
+    setSessao((p) => ({ ...p, avatar: url }));
+    setUsuarios((prev) => prev.map((u) => u.authId === authUser.id ? { ...u, avatar: url } : u));
+    return url;
+  }, [authUser]);
+
   const handleLogout = useCallback(() => supabase.auth.signOut(), []);
 
   return (
@@ -178,7 +186,7 @@ export function AppProvider({ children }) {
       handleSaveItem, handleDelete, handleMovimento,
       handleToggleUsuario, handleResetUserPassword,
       handleRenomearUsuario, handleAlterarSenha,
-      handleCriarUsuario, handleLogout,
+      handleCriarUsuario, handleUploadAvatar, handleLogout,
     }}>
       {children}
     </AppContext.Provider>

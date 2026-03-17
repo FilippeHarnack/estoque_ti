@@ -2,22 +2,23 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import Header from "@/components/layout/Header";
-import { Btn, Table } from "@/components/ui";
-import { AVATAR_ICON_MAP } from "@/lib/constants";
+import { Btn, Table, UserAvatar } from "@/components/ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircleCheck, faCircleXmark, faSpinner, faBolt, faCrown,
   faKey, faLock, faLockOpen, faUsers, faEnvelope, faScroll,
-  faCircle, faBan, faPen, faArrowDown, faArrowUp,
+  faCircle, faBan, faPen, faCamera, faArrowDown, faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function SegurancaPage() {
-  const { t, sessao, historico, usuarios, podeEditar, podeSuperAdmin, handleToggleUsuario, handleResetUserPassword, handleRenomearUsuario, handleAlterarSenha, handleCriarUsuario } = useApp();
+  const { t, sessao, historico, usuarios, podeEditar, podeSuperAdmin, handleToggleUsuario, handleResetUserPassword, handleRenomearUsuario, handleAlterarSenha, handleCriarUsuario, handleUploadAvatar } = useApp();
 
   const [senhaForm, setSenhaForm]       = useState({ nova: "", confirmar: "" });
   const [senhaMsg, setSenhaMsg]         = useState("");
   const [novoUserForm, setNovoUserForm] = useState({ email: "", usuario: "", nome: "", senha: "", perfil: "operador" });
   const [novoUserMsg, setNovoUserMsg]   = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarHover, setAvatarHover]         = useState(false);
   const [criandoUser, setCriandoUser]   = useState(false);
   const [editandoNome, setEditandoNome] = useState(null);
   const [novoNome, setNovoNome]         = useState("");
@@ -61,9 +62,30 @@ export default function SegurancaPage() {
 
           <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: `linear-gradient(135deg,${t.accent},#8B5CF6)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff" }}>
-                <FontAwesomeIcon icon={AVATAR_ICON_MAP[sessao?.avatar] || AVATAR_ICON_MAP.user} />
-              </div>
+              <label
+                title="Clique para trocar a foto"
+                onMouseEnter={() => setAvatarHover(true)}
+                onMouseLeave={() => setAvatarHover(false)}
+                style={{ position: "relative", cursor: "pointer", flexShrink: 0, display: "block", width: 52, height: 52 }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploadingAvatar(true);
+                    try { await handleUploadAvatar(file); } catch {}
+                    setUploadingAvatar(false);
+                    e.target.value = "";
+                  }}
+                />
+                <UserAvatar avatar={sessao?.avatar} t={t} size={52} borderRadius={14} fontSize={22} />
+                <div style={{ position: "absolute", inset: 0, borderRadius: 14, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: avatarHover || uploadingAvatar ? 1 : 0, transition: "opacity 0.15s", color: "#fff", fontSize: 18 }}>
+                  <FontAwesomeIcon icon={uploadingAvatar ? faSpinner : faCamera} spin={uploadingAvatar} />
+                </div>
+              </label>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{sessao?.nome}</div>
                 <div style={{ fontSize: 13, color: t.textMuted }}>@{sessao?.usuario} · <strong style={{ color: t.accent, textTransform: "capitalize" }}>{sessao?.perfil}</strong></div>
@@ -135,9 +157,7 @@ export default function SegurancaPage() {
                     <tr key={u.id} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt, opacity: u.ativo ? 1 : 0.55 }}>
                       <td style={{ padding: "12px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg,${t.accent},#8B5CF6)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, opacity: u.ativo ? 1 : 0.5, color: "#fff" }}>
-                            <FontAwesomeIcon icon={AVATAR_ICON_MAP[u.avatar] || AVATAR_ICON_MAP.user} />
-                          </div>
+                          <UserAvatar avatar={u.avatar} t={t} size={34} borderRadius={10} fontSize={15} style={{ opacity: u.ativo ? 1 : 0.5 }} />
                           <div>
                             {editandoNome?.id === u.id ? (
                               <div style={{ display: "flex", gap: 5, alignItems: "center" }}>

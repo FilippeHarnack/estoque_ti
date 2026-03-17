@@ -4,7 +4,6 @@ import { useApp } from "@/contexts/AppContext";
 import Header from "@/components/layout/Header";
 import { Btn, StatCard, Table } from "@/components/ui";
 import ModalMovimento from "@/components/forms/ModalMovimento";
-import { CAT_ICONS } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt, faCrown, faArrowDown, faArrowUp, faLock,
@@ -62,49 +61,6 @@ export default function MovimentacoesPage() {
             <StatCard t={t} label="Registros"       icon={<FontAwesomeIcon icon={faClipboardList} />} accent="#6366F1" value={historico.length} sub="movimentações no total" />
           </div>
 
-          {podeAdmin && itens.filter((i) => i.qtdDisponivel > 0).length > 0 && (
-            <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Movimentação Rápida</span>
-                <span style={{ fontSize: 11, color: t.textFaint, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 20, padding: "2px 9px", fontWeight: 600 }}>
-                  {itens.filter((i) => i.qtdDisponivel > 0).length} disponíveis
-                </span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 12 }}>
-                {itens.filter((i) => i.qtdDisponivel > 0).slice(0, 4).map((i) => (
-                  <div key={i.id} style={{ background: t.bg, borderRadius: 14, border: `1px solid ${t.border}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                    <div style={{ padding: "14px 14px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${t.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: t.accent, flexShrink: 0 }}>
-                          {CAT_ICONS[i.categoria] && <FontAwesomeIcon icon={CAT_ICONS[i.categoria]} />}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nome}</div>
-                          <div style={{ fontSize: 11, color: t.textFaint, marginTop: 2 }}>{i.categoria}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 11, color: t.textFaint }}>Disponível</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: t.success, background: `${t.success}18`, borderRadius: 8, padding: "2px 9px" }}>{i.qtdDisponivel}</span>
-                      </div>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderTop: `1px solid ${t.border}` }}>
-                      <button onClick={() => setMovModal({ tipo: "entrada", item: i })} style={{ padding: "9px 0", background: "none", border: "none", borderRight: `1px solid ${t.border}`, cursor: "pointer", fontSize: 12, fontWeight: 700, color: t.success, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, transition: "background 0.15s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = `${t.success}12`}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "none"}>
-                        <FontAwesomeIcon icon={faArrowDown} /> Entrada
-                      </button>
-                      <button onClick={() => setMovModal({ tipo: "saida", item: i })} style={{ padding: "9px 0", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: t.danger, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, transition: "background 0.15s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = `${t.danger}12`}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "none"}>
-                        <FontAwesomeIcon icon={faArrowUp} /> Saída
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <Table t={t} emptyMsg="Sem movimentações registradas."
             cols={[
