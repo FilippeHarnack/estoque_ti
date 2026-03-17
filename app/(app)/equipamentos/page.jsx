@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/contexts/AppContext";
 import Header from "@/components/layout/Header";
 import { Btn, Table, StatusBadge, Modal } from "@/components/ui";
@@ -11,10 +12,16 @@ import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, 
 
 export default function EquipamentosPage() {
   const { t, dark, itens, podeAdmin, podeEditar, handleSaveItem, handleDelete, handleMovimento, funcionarios } = useApp();
+  const searchParams = useSearchParams();
 
   const [busca, setBusca]       = useState("");
   const [catFil, setCatFil]     = useState("Todas");
   const [statusFil, setStatusFil] = useState("Todos");
+
+  useEffect(() => {
+    const s = searchParams.get("status");
+    if (s) setStatusFil(s);
+  }, [searchParams]);
   const [deptFil, setDeptFil]   = useState("Todos");
   const [funcFil, setFuncFil]   = useState("Todos");
   const [selecionado, setSelecionado] = useState(null);

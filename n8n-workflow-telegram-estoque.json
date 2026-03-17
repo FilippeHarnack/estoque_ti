@@ -1,0 +1,219 @@
+{
+  "name": "Estoque TI - Chatbot Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "telegram-estoque-ti",
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json.message;\nconst text = msg?.text || '';\nconst chatId = msg?.chat?.id;\nconst from = msg?.from?.first_name + ' ' + (msg?.from?.last_name || '');\n\nreturn [{ json: { text, chatId, from: from.trim(), messageId: msg?.message_id } }];"
+      },
+      "name": "Extrair Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você é um assistente de controle de estoque de TI. Sua função é interpretar mensagens em português e extrair informações de movimentações de equipamentos.\n\nQuando o usuário descrever uma entrada ou saída de equipamento, responda APENAS com um JSON válido no seguinte formato:\n{\n  \"acao\": \"movimentacao\" | \"consulta\" | \"ajuda\",\n  \"tipo\": \"entrada\" | \"saida\",\n  \"item_nome\": \"nome do equipamento\",\n  \"qty\": número,\n  \"funcionario\": \"nome ou null\",\n  \"departamento\": \"nome ou null\",\n  \"serial\": \"número ou null\",\n  \"patrimonio\": \"número ou null\",\n  \"obs\": \"observação ou null\",\n  \"item_consulta\": \"nome para consultar estoque ou null\"\n}\n\nExemplos de entrada:\n- 'entrada de 2 notebooks' → {\"acao\":\"movimentacao\",\"tipo\":\"entrada\",\"item_nome\":\"Notebook\",\"qty\":2,...}\n- 'saída de 1 mouse para João da TI' → {\"acao\":\"movimentacao\",\"tipo\":\"saida\",\"item_nome\":\"Mouse\",\"qty\":1,\"funcionario\":\"João\",\"departamento\":\"TI\",...}\n- 'quantos monitores temos?' → {\"acao\":\"consulta\",\"item_consulta\":\"Monitor\",...}\n- 'ajuda' ou não entendeu → {\"acao\":\"ajuda\",...}\n\nNão inclua nenhum texto fora do JSON. Se não conseguir interpretar, retorne {\"acao\":\"ajuda\"}."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 500
+        }
+      },
+      "name": "Agente IA",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiText = $input.first().json.choices[0].message.content.trim();\nconst chatId = $('Extrair Mensagem').first().json.chatId;\nconst from = $('Extrair Mensagem').first().json.from;\n\nlet parsed;\ntry {\n  // Remove blocos de markdown se existirem\n  const clean = aiText.replace(/```json\\n?|```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = { acao: 'ajuda' };\n}\n\nparsed.chatId = chatId;\nparsed.operador = from + ' (Telegram)';\n\nreturn [{ json: parsed }];"
+      },
+      "name": "Parsear Resposta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [{ "leftValue": "={{ $json.acao }}", "rightValue": "movimentacao", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true,
+              "outputKey": "movimentacao"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [{ "leftValue": "={{ $json.acao }}", "rightValue": "consulta", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true,
+              "outputKey": "consulta"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "name": "Switch Ação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NEXT_APP_URL }}/api/chatbot",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-chatbot-secret", "value": "={{ $env.CHATBOT_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "tipo", "value": "={{ $json.tipo }}" },
+            { "name": "item_nome", "value": "={{ $json.item_nome }}" },
+            { "name": "qty", "value": "={{ $json.qty }}" },
+            { "name": "funcionario", "value": "={{ $json.funcionario }}" },
+            { "name": "departamento", "value": "={{ $json.departamento }}" },
+            { "name": "serial", "value": "={{ $json.serial }}" },
+            { "name": "patrimonio", "value": "={{ $json.patrimonio }}" },
+            { "name": "obs", "value": "={{ $json.obs }}" },
+            { "name": "operador", "value": "={{ $json.operador }}" }
+          ]
+        }
+      },
+      "name": "Registrar Movimentação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.NEXT_APP_URL }}/api/chatbot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-chatbot-secret", "value": "={{ $env.CHATBOT_SECRET }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "item", "value": "={{ $json.item_consulta }}" }
+          ]
+        }
+      },
+      "name": "Consultar Estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formata resposta da movimentação para o Telegram\nconst result = $input.first().json;\nconst chatId = $('Parsear Resposta IA').first().json.chatId;\n\nlet texto;\nif (result.sucesso) {\n  texto = result.mensagem;\n  if (result.estoque) {\n    texto += `\\n\\n📦 *Estoque atual de ${result.estoque.nome}:*`;\n    texto += `\\n• Total: ${result.estoque.qtd_total}`;\n    texto += `\\n• Disponível: ${result.estoque.qtd_disponivel}`;\n    texto += `\\n• Status: ${result.estoque.status}`;\n  }\n} else {\n  texto = `❌ Erro: ${result.error}`;\n}\n\nreturn [{ json: { chatId, texto } }];"
+      },
+      "name": "Formatar Movimentação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formata resposta de consulta para o Telegram\nconst result = $input.first().json;\nconst chatId = $('Parsear Resposta IA').first().json.chatId;\n\nlet texto = '📦 *Consulta de Estoque:*\\n\\n';\n\nif (result.equipamentos && result.equipamentos.length > 0) {\n  result.equipamentos.forEach(e => {\n    texto += `*${e.nome}* (${e.categoria})\\n`;\n    texto += `  • Total: ${e.qtd_total || 0} | Disponível: ${e.qtd_disponivel || 0}\\n`;\n    texto += `  • Status: ${e.status}\\n\\n`;\n  });\n} else {\n  texto = '⚠️ Nenhum equipamento encontrado com esse nome.';\n}\n\nreturn [{ json: { chatId, texto } }];"
+      },
+      "name": "Formatar Consulta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $('Parsear Resposta IA').first().json.chatId;\nconst texto = `🤖 *Assistente de Estoque TI*\\n\\nNão entendi sua mensagem. Tente assim:\\n\\n*Registrar entrada:*\\n_Entrada de 2 notebooks_\\n_Recebi 5 mouses_\\n\\n*Registrar saída:*\\n_Saída de 1 monitor para João da TI_\\n_Emprestei 1 teclado para Maria do RH_\\n\\n*Consultar estoque:*\\n_Quantos monitores temos?_\\n_Estoque de notebooks_`;\nreturn [{ json: { chatId, texto } }];"
+      },
+      "name": "Mensagem Ajuda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 560]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Enviar Resposta Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1780, 360],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": { "main": [[{ "node": "Extrair Mensagem", "type": "main", "index": 0 }]] },
+    "Extrair Mensagem": { "main": [[{ "node": "Agente IA", "type": "main", "index": 0 }]] },
+    "Agente IA": { "main": [[{ "node": "Parsear Resposta IA", "type": "main", "index": 0 }]] },
+    "Parsear Resposta IA": { "main": [[{ "node": "Switch Ação", "type": "main", "index": 0 }]] },
+    "Switch Ação": {
+      "movimentacao": [[{ "node": "Registrar Movimentação", "type": "main", "index": 0 }]],
+      "consulta": [[{ "node": "Consultar Estoque", "type": "main", "index": 0 }]],
+      "extra": [[{ "node": "Mensagem Ajuda", "type": "main", "index": 0 }]]
+    },
+    "Registrar Movimentação": { "main": [[{ "node": "Formatar Movimentação", "type": "main", "index": 0 }]] },
+    "Consultar Estoque": { "main": [[{ "node": "Formatar Consulta", "type": "main", "index": 0 }]] },
+    "Formatar Movimentação": { "main": [[{ "node": "Enviar Resposta Telegram", "type": "main", "index": 0 }]] },
+    "Formatar Consulta": { "main": [[{ "node": "Enviar Resposta Telegram", "type": "main", "index": 0 }]] },
+    "Mensagem Ajuda": { "main": [[{ "node": "Enviar Resposta Telegram", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

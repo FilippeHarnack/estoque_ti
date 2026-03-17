@@ -29,10 +29,10 @@ export default function DashboardPage() {
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <StatCard t={t} label="Total de Itens"  value={stats.total}      icon={<FontAwesomeIcon icon={faBoxOpen} />}       accent="#6366F1" sub={`${stats.totalUnid} unidades`}       onClick={() => router.push("/equipamentos")} />
-            <StatCard t={t} label="Em Uso"           value={stats.emUso}      icon={<FontAwesomeIcon icon={faBriefcase} />}     accent="#3B82F6" sub={`${stats.total ? Math.round(stats.emUso / stats.total * 100) : 0}% da frota`} />
-            <StatCard t={t} label="Disponível"       value={stats.disponivel} icon={<FontAwesomeIcon icon={faCircleCheck} />}   accent="#10B981" sub={`${stats.dispUnid} unidades livres`} />
-            <StatCard t={t} label="Manutenção"       value={stats.manutencao} icon={<FontAwesomeIcon icon={faWrench} />}        accent="#F59E0B" sub="Necessita atenção" />
-            <StatCard t={t} label="Desativado"       value={stats.desativado} icon={<FontAwesomeIcon icon={faBoxArchive} />}    accent="#6B7280" sub="Fim de vida" />
+            <StatCard t={t} label="Em Uso"           value={stats.emUso}      icon={<FontAwesomeIcon icon={faBriefcase} />}     accent="#3B82F6" sub={`${stats.total ? Math.round(stats.emUso / stats.total * 100) : 0}% da frota`} onClick={() => router.push("/equipamentos?status=Em+Uso")} />
+            <StatCard t={t} label="Disponível"       value={stats.disponivel} icon={<FontAwesomeIcon icon={faCircleCheck} />}   accent="#10B981" sub={`${stats.dispUnid} unidades livres`} onClick={() => router.push("/equipamentos?status=Dispon%C3%ADvel")} />
+            <StatCard t={t} label="Manutenção"       value={stats.manutencao} icon={<FontAwesomeIcon icon={faWrench} />}        accent="#F59E0B" sub="Necessita atenção" onClick={() => router.push("/equipamentos?status=Manuten%C3%A7%C3%A3o")} />
+            <StatCard t={t} label="Desativado"       value={stats.desativado} icon={<FontAwesomeIcon icon={faBoxArchive} />}    accent="#6B7280" sub="Fim de vida" onClick={() => router.push("/equipamentos?status=Desativado")} />
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
