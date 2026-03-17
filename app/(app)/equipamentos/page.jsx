@@ -39,7 +39,7 @@ export default function EquipamentosPage() {
     return mB && (catFil === "Todas" || a.categoria === catFil) && (statusFil === "Todos" || a.status === statusFil) && (deptFil === "Todos" || a.departamento === deptFil) && (funcFil === "Todos" || a.funcionario === funcFil) && (marcaFil === "Todas" || a.marca === marcaFil);
   }), [itens, busca, catFil, statusFil, deptFil, funcFil, marcaFil]);
 
-  const marcasOpts = ["Todas", "Apple", "Asus", "Acer", "HP", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung", "Generic"];
+  const marcasOpts = ["Todas", "Acer", "Apple", "Asus", "BRX", "Edifier", "Feltron", "Generic", "HP", "Intelbras", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung"];
 
   const temFiltros = catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || funcFil !== "Todos" || marcaFil !== "Todas" || busca;
 

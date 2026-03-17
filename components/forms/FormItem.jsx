@@ -74,7 +74,7 @@ function MarcaField({ value, onChange, marcas, onAddMarca, t }) {
   );
 }
 
-const MARCAS_LISTA = ["Apple", "Asus", "Acer", "HP", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung", "Generic"];
+const MARCAS_LISTA = ["Acer", "Apple", "Asus", "BRX", "Edifier", "Feltron", "Generic", "HP", "Intelbras", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung"];
 
 export default function FormItem({ item, onSave, onClose, t }) {
   const { handleAddMarca } = useApp();
