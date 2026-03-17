@@ -8,10 +8,10 @@ import FormItem from "@/components/forms/FormItem";
 import ModalMovimento from "@/components/forms/ModalMovimento";
 import { CAT_ICONS, CAT_FILTROS, STATUS_FILTROS, DEPARTAMENTOS, CATEGORIAS_ITENS } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding } from "@fortawesome/free-solid-svg-icons";
+import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding, faIndustry } from "@fortawesome/free-solid-svg-icons";
 
 export default function EquipamentosPage() {
-  const { t, dark, itens, podeAdmin, podeEditar, handleSaveItem, handleDelete, handleMovimento, funcionarios } = useApp();
+  const { t, dark, itens, marcas, podeAdmin, podeEditar, handleSaveItem, handleDelete, handleMovimento, funcionarios } = useApp();
   const searchParams = useSearchParams();
 
   const [busca, setBusca]       = useState("");
@@ -24,6 +24,7 @@ export default function EquipamentosPage() {
   }, [searchParams]);
   const [deptFil, setDeptFil]   = useState("Todos");
   const [funcFil, setFuncFil]   = useState("Todos");
+  const [marcaFil, setMarcaFil] = useState("Todas");
   const [selecionado, setSelecionado] = useState(null);
   const [editando, setEditando] = useState(null);
   const [adicionando, setAdicionando] = useState(false);
@@ -35,10 +36,12 @@ export default function EquipamentosPage() {
   const filtrados = useMemo(() => itens.filter((a) => {
     const q = busca.toLowerCase();
     const mB = !q || [a.nome, a.marca, a.modelo, a.serial, a.funcionario, a.departamento].some((v) => v?.toLowerCase().includes(q));
-    return mB && (catFil === "Todas" || a.categoria === catFil) && (statusFil === "Todos" || a.status === statusFil) && (deptFil === "Todos" || a.departamento === deptFil) && (funcFil === "Todos" || a.funcionario === funcFil);
-  }), [itens, busca, catFil, statusFil, deptFil, funcFil]);
+    return mB && (catFil === "Todas" || a.categoria === catFil) && (statusFil === "Todos" || a.status === statusFil) && (deptFil === "Todos" || a.departamento === deptFil) && (funcFil === "Todos" || a.funcionario === funcFil) && (marcaFil === "Todas" || a.marca === marcaFil);
+  }), [itens, busca, catFil, statusFil, deptFil, funcFil, marcaFil]);
 
-  const temFiltros = catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || funcFil !== "Todos" || busca;
+  const marcasOpts = ["Todas", "Apple", "Asus", "Acer", "HP", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung", "Generic"];
+
+  const temFiltros = catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || funcFil !== "Todos" || marcaFil !== "Todas" || busca;
 
   return (
     <>
@@ -101,9 +104,10 @@ export default function EquipamentosPage() {
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               {[
-                { label: "Categoria", icon: faTag,      value: catFil,    onChange: setCatFil,    opts: CAT_FILTROS,    active: catFil    !== "Todas" },
+                { label: "Categoria", icon: faTag,       value: catFil,    onChange: setCatFil,    opts: CAT_FILTROS,    active: catFil    !== "Todas" },
                 { label: "Status",    icon: faCircleDot, value: statusFil, onChange: setStatusFil, opts: STATUS_FILTROS, active: statusFil !== "Todos" },
                 { label: "Depto.",    icon: faBuilding,  value: deptFil,   onChange: setDeptFil,   opts: DEPARTAMENTOS,  active: deptFil   !== "Todos" },
+                { label: "Marca",     icon: faIndustry,  value: marcaFil,  onChange: setMarcaFil,  opts: marcasOpts,     active: marcaFil  !== "Todas" },
               ].map(({ label, icon, value, onChange, opts, active }) => (
                 <div key={label} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: active ? t.accent : t.textFaint, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 4 }}>
@@ -123,7 +127,7 @@ export default function EquipamentosPage() {
                 </select>
               </div>
               {temFiltros && (
-                <button onClick={() => { setCatFil("Todas"); setStatusFil("Todos"); setDeptFil("Todos"); setFuncFil("Todos"); setBusca(""); }}
+                <button onClick={() => { setCatFil("Todas"); setStatusFil("Todos"); setDeptFil("Todos"); setFuncFil("Todos"); setMarcaFil("Todas"); setBusca(""); }}
                   style={{ padding: "7px 13px", borderRadius: 8, border: `1px solid ${t.dangerBdr}`, background: t.dangerBg, color: t.danger, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, display: "flex", alignItems: "center", gap: 5, alignSelf: "flex-end" }}>
                   <FontAwesomeIcon icon={faXmark} /> Limpar
                 </button>

@@ -6,6 +6,7 @@ import { mapUsuario } from "@/lib/mappers";
 import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload } from "@/services/equipmentService";
 import { getAllMovimentos, processarMovimento } from "@/services/movementService";
 import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
+import { getAllMarcas, createMarca, deleteMarca } from "@/services/marcasService";
 
 const AppContext = createContext(null);
 
@@ -24,19 +25,22 @@ export function AppProvider({ children }) {
   const [itens, setItens]         = useState([]);
   const [historico, setHistorico] = useState([]);
   const [usuarios, setUsuarios]   = useState([]);
+  const [marcas, setMarcas]       = useState([]);
 
   const carregarDados = useCallback(async (authUserObj) => {
     setCarregando(true);
     setErroDb("");
     try {
-      const [equip, movs, usrs] = await Promise.all([
+      const [equip, movs, usrs, mrcs] = await Promise.all([
         getAllEquipamentos(),
         getAllMovimentos(),
         getAllUsuarios(),
+        getAllMarcas().catch(() => []),
       ]);
       setItens(equip);
       setHistorico(movs);
       setUsuarios(usrs);
+      setMarcas(mrcs);
 
       const perfil = usrs.find((u) => u.authId === authUserObj.id);
       if (perfil) {
@@ -174,19 +178,32 @@ export function AppProvider({ children }) {
     return url;
   }, [authUser]);
 
+  const handleAddMarca = useCallback(async (nome) => {
+    const nova = await createMarca(nome);
+    setMarcas((p) => [...p, nova].sort((a, b) => a.nome.localeCompare(b.nome)));
+    return nova;
+  }, []);
+
+  const handleDeleteMarca = useCallback(async (id) => {
+    await deleteMarca(id);
+    setMarcas((p) => p.filter((m) => m.id !== id));
+  }, []);
+
   const handleLogout = useCallback(() => supabase.auth.signOut(), []);
 
   return (
     <AppContext.Provider value={{
       dark, setDark, t,
       sessao, authUser, carregando, erroDb,
-      itens, historico, usuarios,
+      itens, historico, usuarios, marcas,
       stats, funcionarios,
       podeSuperAdmin, podeAdmin, podeEditar,
       handleSaveItem, handleDelete, handleMovimento,
       handleToggleUsuario, handleResetUserPassword,
       handleRenomearUsuario, handleAlterarSenha,
-      handleCriarUsuario, handleUploadAvatar, handleLogout,
+      handleCriarUsuario, handleUploadAvatar,
+      handleAddMarca, handleDeleteMarca,
+      handleLogout,
     }}>
       {children}
     </AppContext.Provider>

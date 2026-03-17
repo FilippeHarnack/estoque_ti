@@ -8,10 +8,11 @@ import {
   faCircleCheck, faCircleXmark, faSpinner, faBolt, faCrown,
   faKey, faLock, faLockOpen, faUsers, faEnvelope, faScroll,
   faCircle, faBan, faPen, faCamera, faArrowDown, faArrowUp,
+  faTag, faPlus, faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function SegurancaPage() {
-  const { t, sessao, historico, usuarios, podeEditar, podeSuperAdmin, handleToggleUsuario, handleResetUserPassword, handleRenomearUsuario, handleAlterarSenha, handleCriarUsuario, handleUploadAvatar } = useApp();
+  const { t, sessao, historico, usuarios, marcas, podeEditar, podeSuperAdmin, podeAdmin, handleToggleUsuario, handleResetUserPassword, handleRenomearUsuario, handleAlterarSenha, handleCriarUsuario, handleUploadAvatar, handleAddMarca, handleDeleteMarca } = useApp();
 
   const [senhaForm, setSenhaForm]       = useState({ nova: "", confirmar: "" });
   const [senhaMsg, setSenhaMsg]         = useState("");
@@ -22,6 +23,8 @@ export default function SegurancaPage() {
   const [criandoUser, setCriandoUser]   = useState(false);
   const [editandoNome, setEditandoNome] = useState(null);
   const [novoNome, setNovoNome]         = useState("");
+  const [novaMarca, setNovaMarca]       = useState("");
+  const [marcaMsg, setMarcaMsg]         = useState("");
 
   const onAlterarSenha = async () => {
     setSenhaMsg("");
@@ -31,6 +34,18 @@ export default function SegurancaPage() {
       setSenhaForm({ nova: "", confirmar: "" });
       setTimeout(() => setSenhaMsg(""), 1500);
     } catch (err) { setSenhaMsg("err: " + err.message); }
+  };
+
+  const onAdicionarMarca = async () => {
+    const nome = novaMarca.trim();
+    if (!nome) return;
+    setMarcaMsg("wait: Salvando...");
+    try {
+      await handleAddMarca(nome);
+      setNovaMarca("");
+      setMarcaMsg("ok: Marca adicionada!");
+      setTimeout(() => setMarcaMsg(""), 2000);
+    } catch { setMarcaMsg("err: Marca já existe ou erro ao salvar."); }
   };
 
   const onCriarUsuario = async () => {
@@ -59,6 +74,57 @@ export default function SegurancaPage() {
       <Header title="Segurança" />
       <main style={{ flex: 1, overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* ── Gerenciar Marcas ── */}
+          {podeAdmin && (
+            <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <span style={{ color: t.accent, fontSize: 15 }}><FontAwesomeIcon icon={faTag} /></span>
+                <span style={{ fontWeight: 700, fontSize: 15, color: t.text }}>Marcas de Equipamentos</span>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: t.textFaint }}>{marcas.length} marca{marcas.length !== 1 ? "s" : ""}</span>
+              </div>
+
+              {/* Campo adicionar */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <input
+                  value={novaMarca}
+                  onChange={(e) => setNovaMarca(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && onAdicionarMarca()}
+                  placeholder="Nova marca (ex: Dell, Apple...)"
+                  style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.inputBg, color: t.text, fontSize: 14, fontFamily: "inherit", outline: "none" }}
+                />
+                <button onClick={onAdicionarMarca} disabled={!novaMarca.trim()}
+                  style={{ padding: "0 16px", borderRadius: 10, border: "none", background: t.accent, color: "#fff", cursor: novaMarca.trim() ? "pointer" : "not-allowed", opacity: novaMarca.trim() ? 1 : 0.5, fontSize: 14, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontWeight: 600 }}>
+                  <FontAwesomeIcon icon={faPlus} /> Adicionar
+                </button>
+              </div>
+
+              {marcaMsg && (
+                <div style={{ marginBottom: 12, fontSize: 13, color: marcaMsg.startsWith("ok") ? t.success : marcaMsg.startsWith("wait") ? t.accent : "#EF4444", display: "flex", alignItems: "center", gap: 6 }}>
+                  <FontAwesomeIcon icon={getMsgIcon(marcaMsg)} spin={marcaMsg.startsWith("wait")} />
+                  {getMsgText(marcaMsg)}
+                </div>
+              )}
+
+              {/* Lista de marcas */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {marcas.length === 0 && (
+                  <span style={{ color: t.textFaint, fontSize: 13 }}>Nenhuma marca cadastrada. Execute o SQL em supabase-marcas.sql primeiro.</span>
+                )}
+                {marcas.map((m) => (
+                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 20, padding: "5px 12px 5px 14px" }}>
+                    <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{m.nome}</span>
+                    <button onClick={() => handleDeleteMarca(m.id)} title="Remover"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: t.textFaint, fontSize: 11, padding: "0 2px", lineHeight: 1, display: "flex", alignItems: "center" }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = "#EF4444"}
+                      onMouseLeave={(e) => e.currentTarget.style.color = t.textFaint}>
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>

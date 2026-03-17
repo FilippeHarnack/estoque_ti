@@ -58,20 +58,125 @@ function BarChart({ dados, t }) {
   );
 }
 
-/* ─── Download CSV ─── */
-function downloadCSV(historico, periodo, label) {
-  const linhas = [
-    ["Data", "Tipo", "Item", "Categoria", "Qtd", "Funcionário", "Departamento", "Operador", "Observação"],
-    ...historico.map((h) => [h.data, h.tipo === "entrada" ? "Entrada" : "Saída", h.itemNome, h.categoria, h.qty, h.funcionario, h.depto, h.usuario, h.obs || ""]),
+/* ─── Download Excel ─── */
+async function downloadExcel(historico, periodo) {
+  const XLSX = (await import("xlsx-js-style")).default;
+
+  const agora        = new Date();
+  const dataGeracao  = agora.toLocaleDateString("pt-BR") + " " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros" }[periodo];
+  const totalE = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
+  const totalS = historico.filter((h) => h.tipo === "saida").reduce((s, h)   => s + h.qty, 0);
+  const saldo  = totalE - totalS;
+
+  /* ── estilos reutilizáveis ── */
+  const ACCENT   = "1E40AF";   // azul escuro
+  const HEADER_BG= "1E3A8A";
+  const ROW_ALT  = "EFF6FF";
+  const GREEN_BG = "DCFCE7"; const GREEN_FG = "166534";
+  const RED_BG   = "FEE2E2"; const RED_FG   = "991B1B";
+  const GRAY_BG  = "F1F5F9";
+
+  const font      = (bold, sz, color = "000000") => ({ bold, sz: sz || 11, color: { rgb: color }, name: "Calibri" });
+  const fill      = (rgb)  => ({ type: "pattern", patternType: "solid", fgColor: { rgb } });
+  const border    = ()     => ({ top: { style: "thin", color: { rgb: "CBD5E1" } }, bottom: { style: "thin", color: { rgb: "CBD5E1" } }, left: { style: "thin", color: { rgb: "CBD5E1" } }, right: { style: "thin", color: { rgb: "CBD5E1" } } });
+  const align     = (h, v = "center") => ({ horizontal: h, vertical: v, wrapText: false });
+
+  const cell = (v, style) => ({ v, s: style });
+
+  /* ── montagem das linhas ── */
+  const rows = [];
+
+  // Linha 1 — título
+  rows.push([cell("RELATÓRIO DE MOVIMENTAÇÕES — ESTOQUE TI", { font: font(true, 14, "FFFFFF"), fill: fill(HEADER_BG), alignment: align("left"), border: border() }),
+    ...Array(9).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
+
+  // Linha 2 — vazia
+  rows.push(Array(10).fill(cell("")));
+
+  // Linhas de metadados
+  const meta = (lbl, val) => [
+    cell(lbl, { font: font(true, 11, "475569"), fill: fill(GRAY_BG), alignment: align("left") }),
+    cell(val, { font: font(false, 11),          fill: fill(GRAY_BG), alignment: align("left") }),
+    ...Array(8).fill(cell("", { fill: fill(GRAY_BG) })),
   ];
-  const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = `relatorio_${periodo}_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  rows.push(meta("Período:",           labelPeriodo));
+  rows.push(meta("Gerado em:",         dataGeracao));
+  rows.push(meta("Total de registros:", historico.length));
+
+  // Linha vazia
+  rows.push(Array(10).fill(cell("")));
+
+  // Cabeçalho das colunas
+  const COLS = ["Data", "Hora", "Tipo", "Item", "Categoria", "Qtd", "Funcionário", "Departamento", "Operador", "Observação"];
+  rows.push(COLS.map((h) => cell(h, { font: font(true, 11, "FFFFFF"), fill: fill(ACCENT), alignment: align("center"), border: border() })));
+
+  // Dados
+  historico.forEach((h, i) => {
+    const [data, hora] = (h.data || "").split("T");
+    const entrada = h.tipo === "entrada";
+    const tipoBg  = entrada ? GREEN_BG : RED_BG;
+    const tipoFg  = entrada ? GREEN_FG : RED_FG;
+    const rowBg   = i % 2 === 0 ? "FFFFFF" : ROW_ALT;
+    const base    = { fill: fill(rowBg), border: border(), alignment: align("left") };
+
+    rows.push([
+      cell(data || h.data,                { ...base, font: font(false, 10), alignment: align("center") }),
+      cell(hora ? hora.slice(0, 5) : "",  { ...base, font: font(false, 10), alignment: align("center") }),
+      cell(entrada ? "Entrada" : "Saída", { font: font(true, 10, tipoFg), fill: fill(tipoBg), border: border(), alignment: align("center") }),
+      cell(h.itemNome,                    { ...base, font: font(false, 11) }),
+      cell(h.categoria,                   { ...base, font: font(false, 10) }),
+      cell(h.qty,                         { ...base, font: font(true, 11),  alignment: align("center"), t: "n" }),
+      cell(h.funcionario || "—",          { ...base, font: font(false, 10) }),
+      cell(h.depto       || "—",          { ...base, font: font(false, 10) }),
+      cell(h.usuario     || "—",          { ...base, font: font(false, 10) }),
+      cell(h.obs         || "",           { ...base, font: font(false, 10) }),
+    ]);
+  });
+
+  // Linha vazia
+  rows.push(Array(10).fill(cell("")));
+
+  // Resumo
+  rows.push([cell("RESUMO", { font: font(true, 12, "FFFFFF"), fill: fill(HEADER_BG), alignment: align("left"), border: border() }),
+    ...Array(9).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
+
+  const resumoRow = (lbl, val, bg, fg) => [
+    cell(lbl, { font: font(true, 11, fg || "1E293B"),   fill: fill(bg || GRAY_BG), alignment: align("left"),   border: border() }),
+    cell(val, { font: font(true, 12, fg || "1E293B"),   fill: fill(bg || GRAY_BG), alignment: align("center"), border: border(), t: "n" }),
+    ...Array(8).fill(cell("", { fill: fill(bg || GRAY_BG), border: border() })),
+  ];
+  rows.push(resumoRow("Total de Entradas", totalE, GREEN_BG, GREEN_FG));
+  rows.push(resumoRow("Total de Saídas",   totalS, RED_BG,   RED_FG));
+  rows.push(resumoRow("Saldo",             saldo,  saldo >= 0 ? GREEN_BG : RED_BG, saldo >= 0 ? GREEN_FG : RED_FG));
+
+  /* ── montar planilha ── */
+  const ws   = XLSX.utils.aoa_to_sheet(rows.map((r) => r.map((c) => c.v)));
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[addr]) ws[addr] = { v: "" };
+      ws[addr].s = rows[R]?.[C]?.s || {};
+      if (rows[R]?.[C]?.t) ws[addr].t = rows[R][C].t;
+    }
+  }
+
+  // Mesclagem do título e resumo
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },     // título
+    { s: { r: rows.length - 4, c: 0 }, e: { r: rows.length - 4, c: 9 } }, // RESUMO
+  ];
+
+  // Larguras das colunas
+  ws["!cols"] = [
+    { wch: 12 }, { wch: 7 }, { wch: 10 }, { wch: 28 }, { wch: 14 },
+    { wch: 6 },  { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 28 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Movimentações");
+  XLSX.writeFile(wb, `relatorio_ti_${periodo}_${agora.toISOString().slice(0, 10)}.xlsx`);
 }
 
 /* ─── Modal Relatório ─── */
@@ -97,9 +202,9 @@ function RelatorioModal({ t, historico, periodo, onClose }) {
             <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>{labelPeriodo}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => downloadCSV(historico, periodo)}
+            <button onClick={() => downloadExcel(historico, periodo)}
               style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: t.accent, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-              <FontAwesomeIcon icon={faFileArrowDown} /> Baixar CSV
+              <FontAwesomeIcon icon={faFileArrowDown} /> Baixar Excel
             </button>
             <button onClick={onClose}
               style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.bg, color: t.textMuted, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -190,7 +295,7 @@ export default function RelatoriosPage() {
   const headerActions = (
     <button onClick={() => setModalAberto(true)}
       style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 16px", borderRadius: 10, background: t.accent, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-      <FontAwesomeIcon icon={faFileArrowDown} /> Baixar Relatório
+      <FontAwesomeIcon icon={faFileArrowDown} /> Baixar Excel
     </button>
   );
 
