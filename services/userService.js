@@ -58,7 +58,7 @@ export async function createUsuario({ email, usuario, nome, senha, perfil, avata
   return mapUsuario(json.user);
 }
 
-function resizeToBase64(file, size = 128) {
+function resizeToBlob(file, size = 256) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -74,7 +74,7 @@ function resizeToBase64(file, size = 128) {
         const sx = (img.width - min) / 2;
         const sy = (img.height - min) / 2;
         ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas toBlob falhou")), "image/jpeg", 0.88);
       };
       img.src = e.target.result;
     };
@@ -83,10 +83,21 @@ function resizeToBase64(file, size = 128) {
 }
 
 export async function uploadAvatar(authId, file) {
-  const base64 = await resizeToBase64(file, 128);
-  const { error } = await supabase.from("usuarios_app").update({ avatar: base64 }).eq("auth_id", authId);
-  if (error) throw error;
-  return base64;
+  const blob = await resizeToBlob(file, 256);
+  const path = `avatars/${authId}.jpg`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("photos")
+    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("photos").getPublicUrl(path);
+  const url = `${data.publicUrl}?t=${Date.now()}`;
+
+  const { error: dbError } = await supabase.from("usuarios_app").update({ avatar: url }).eq("auth_id", authId);
+  if (dbError) throw dbError;
+
+  return url;
 }
 
 export async function changePassword(novaSenha) {
