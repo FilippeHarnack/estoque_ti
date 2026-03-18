@@ -19,6 +19,7 @@ export default function SegurancaPage() {
   const [novoUserForm, setNovoUserForm] = useState({ email: "", usuario: "", nome: "", senha: "", perfil: "operador" });
   const [novoUserMsg, setNovoUserMsg]   = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError]         = useState("");
   const [avatarHover, setAvatarHover]         = useState(false);
   const [criandoUser, setCriandoUser]   = useState(false);
   const [editandoNome, setEditandoNome] = useState(null);
@@ -142,7 +143,9 @@ export default function SegurancaPage() {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     setUploadingAvatar(true);
-                    try { await handleUploadAvatar(file); } catch {}
+                    setAvatarError("");
+                    try { await handleUploadAvatar(file); }
+                    catch (err) { setAvatarError(err.message || "Erro ao fazer upload"); }
                     setUploadingAvatar(false);
                     e.target.value = "";
                   }}
@@ -155,6 +158,7 @@ export default function SegurancaPage() {
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{sessao?.nome}</div>
                 <div style={{ fontSize: 13, color: t.textMuted }}>@{sessao?.usuario} · <strong style={{ color: t.accent, textTransform: "capitalize" }}>{sessao?.perfil}</strong></div>
+                {avatarError && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{avatarError}</div>}
               </div>
             </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

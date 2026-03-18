@@ -91,8 +91,9 @@ export async function uploadAvatar(authId, file) {
     .upload(path, blob, { contentType: "image/jpeg", upsert: true });
   if (uploadError) throw uploadError;
 
-  const { data } = supabase.storage.from("photos").getPublicUrl(path);
-  const url = `${data.publicUrl}?t=${Date.now()}`;
+  const { data, error: signError } = await supabase.storage.from("photos").createSignedUrl(path, 315360000); // 10 anos
+  if (signError) throw signError;
+  const url = data.signedUrl;
 
   const { error: dbError } = await supabase.from("usuarios_app").update({ avatar: url }).eq("auth_id", authId);
   if (dbError) throw dbError;
