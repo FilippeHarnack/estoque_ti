@@ -7,7 +7,7 @@ import ModalMovimento from "@/components/forms/ModalMovimento";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt, faCrown, faArrowDown, faArrowUp, faLock,
-  faClipboardList,
+  faClipboardList, faRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 
 const PERFIL_BADGE = {
@@ -66,15 +66,18 @@ export default function MovimentacoesPage() {
             cols={[
               { label: "Data",       render: (r) => <span style={{ color: t.textFaint, fontSize: 12, whiteSpace: "nowrap" }}>{r.data}</span> },
               { label: "Tipo",       render: (r) => (
-                <span style={{ fontWeight: 700, fontSize: 12, color: r.tipo === "entrada" ? t.success : t.danger, background: r.tipo === "entrada" ? t.successBg : t.dangerBg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : faArrowUp} />
-                  {r.tipo === "entrada" ? "Entrada" : "Saída"}
+                <span style={{ fontWeight: 700, fontSize: 12,
+                  color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : t.danger,
+                  background: r.tipo === "entrada" ? t.successBg : r.tipo === "ajuste" ? "#F59E0B22" : r.tipo === "devolucao" ? "#60A5FA22" : t.dangerBg,
+                  padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : r.tipo === "ajuste" ? faClipboardList : r.tipo === "devolucao" ? faRotateLeft : faArrowUp} />
+                  {r.tipo === "entrada" ? "Entrada" : r.tipo === "ajuste" ? "Ajuste" : r.tipo === "devolucao" ? "Devolução" : "Saída"}
                 </span>
               )},
               { label: "Item",       render: (r) => <div><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.itemNome}</div><div style={{ fontSize: 11, color: t.textFaint }}>{r.categoria || "—"}</div></div> },
               { label: "Nº Série",   render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.serial || "—"}</span> },
               { label: "Patrimônio", render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.patrimonio || "—"}</span> },
-              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: r.tipo === "entrada" ? t.success : t.danger }}>{r.tipo === "entrada" ? "+" : "-"}{r.qty}</span> },
+              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : t.danger }}>{r.tipo === "entrada" ? "+" : r.tipo === "ajuste" ? "~" : r.tipo === "devolucao" ? "↩" : "-"}{r.qty}</span> },
               { label: "Total",      render: (r) => <span style={{ fontWeight: 600, color: t.text }}>{r.qtdTotal ?? "—"}</span> },
               { label: "Disponível", render: (r) => <span style={{ fontWeight: 600, color: r.qtdDisponivel === 0 ? t.danger : t.success }}>{r.qtdDisponivel ?? "—"}</span> },
               {
@@ -82,6 +85,29 @@ export default function MovimentacoesPage() {
                 render: (r) => {
                   const temFunc  = r.funcionario && r.funcionario !== "—";
                   const temDepto = r.depto && r.depto !== "—";
+
+                  if (r.tipo === "ajuste") {
+                    return (
+                      <div style={{ fontSize: 12, color: "#F59E0B", fontStyle: "italic" }}>
+                        {r.obs || "Ajuste manual"}
+                      </div>
+                    );
+                  }
+
+                  if (r.tipo === "devolucao") {
+                    return (
+                      <div>
+                        <div style={{ fontSize: 11, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                          <FontAwesomeIcon icon={faRotateLeft} /> Devolvido por
+                        </div>
+                        {temFunc
+                          ? <div style={{ fontSize: 13, fontWeight: 600, color: "#60A5FA" }}>{r.funcionario}</div>
+                          : <div style={{ fontSize: 12, color: t.textFaint, fontStyle: "italic" }}>Não informado</div>
+                        }
+                        {temDepto && <div style={{ fontSize: 11, color: t.textFaint }}>{r.depto}</div>}
+                      </div>
+                    );
+                  }
 
                   if (r.tipo === "entrada") {
                     return (

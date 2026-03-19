@@ -3,8 +3,8 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { supabase } from "@/services/supabase";
 import { buildTheme } from "@/lib/theme";
 import { mapUsuario } from "@/lib/mappers";
-import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload } from "@/services/equipmentService";
-import { getAllMovimentos, processarMovimento } from "@/services/movementService";
+import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload, splitEquipamentoManutencao } from "@/services/equipmentService";
+import { getAllMovimentos, processarMovimento, processarDevolucao, registrarAjusteManual, registrarSaidaCadastro } from "@/services/movementService";
 import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
 import { getAllMarcas, createMarca, deleteMarca } from "@/services/marcasService";
 
@@ -104,11 +104,32 @@ export function AppProvider({ children }) {
     if (editandoItem) {
       const updated = await updateEquipamento(editandoItem.id, payload);
       setItens((p) => p.map((a) => (a.id === editandoItem.id ? updated : a)));
+      const qtdMudou = form.qtdTotal !== editandoItem.qtdTotal || form.qtdDisponivel !== editandoItem.qtdDisponivel;
+      if (qtdMudou) {
+        const mov = await registrarAjusteManual({
+          item: editandoItem,
+          novoTotal: form.qtdTotal,
+          novoDisp: form.qtdDisponivel,
+          operador: sessao?.usuario,
+        });
+        if (mov) setHistorico((p) => [mov, ...p]);
+      }
     } else {
       const created = await createEquipamento(payload);
       setItens((p) => [...p, created]);
+      const qtdFora = form.qtdTotal - form.qtdDisponivel;
+      if (form.funcionario && form.funcionario !== "—" && qtdFora > 0) {
+        const mov = await registrarSaidaCadastro({
+          item: created,
+          qty: qtdFora,
+          func: form.funcionario,
+          depto: form.departamento !== "—" ? form.departamento : "TI",
+          operador: sessao?.usuario,
+        });
+        if (mov) setHistorico((p) => [mov, ...p]);
+      }
     }
-  }, []);
+  }, [sessao]);
 
   const handleDelete = useCallback(async (id) => {
     await deleteEquipamento(id);
@@ -129,6 +150,28 @@ export function AppProvider({ children }) {
     }
     if (novaMovimentacao) setHistorico((p) => [novaMovimentacao, ...p]);
   }, [itens, sessao]);
+
+  const handleDevolucao = useCallback(async ({ item, qty, obs }) => {
+    try {
+      const { itemDeletado, itemId, novaMovimentacao } = await processarDevolucao({
+        item, qty, obs, operador: sessao?.usuario,
+      });
+      if (itemDeletado) {
+        // Item deletado: some da lista completamente
+        setItens((p) => p.filter((a) => a.id !== itemId));
+      } else {
+        // Fallback: FK impediu delete, apenas limpa o vínculo na UI
+        setItens((p) => p.map((a) => a.id === itemId
+          ? { ...a, status: "Disponível", funcionario: "—", departamento: "—", qtdDisponivel: a.qtdTotal }
+          : a
+        ));
+      }
+      if (novaMovimentacao) setHistorico((p) => [novaMovimentacao, ...p]);
+    } catch (err) {
+      console.error("Erro ao devolver equipamento:", err);
+      alert(`Erro ao devolver: ${err.message || err}`);
+    }
+  }, [sessao]);
 
   const handleToggleUsuario = useCallback(async (u) => {
     const novoAtivo = await toggleUsuario(u);
@@ -189,6 +232,23 @@ export function AppProvider({ children }) {
     setMarcas((p) => p.filter((m) => m.id !== id));
   }, []);
 
+  const handleToggleManutencao = useCallback(async (item, qty) => {
+    if (item.status === "Manutenção") {
+      // Retornar da manutenção
+      const novoStatus = item.funcionario && item.funcionario !== "—" ? "Em Uso" : "Disponível";
+      const updated = await updateEquipamento(item.id, { status: novoStatus });
+      setItens((p) => p.map((a) => (a.id === item.id ? updated : a)));
+    } else if (qty && qty < item.qtdTotal) {
+      // Manutenção parcial: separa qty unidades em registro próprio
+      const { updatedOriginal, createdManut } = await splitEquipamentoManutencao(item, qty);
+      setItens((p) => [...p.map((a) => a.id === item.id ? updatedOriginal : a), createdManut]);
+    } else {
+      // Todas as unidades vão para manutenção
+      const updated = await updateEquipamento(item.id, { status: "Manutenção" });
+      setItens((p) => p.map((a) => (a.id === item.id ? updated : a)));
+    }
+  }, []);
+
   const handleLogout = useCallback(() => supabase.auth.signOut(), []);
 
   return (
@@ -198,11 +258,12 @@ export function AppProvider({ children }) {
       itens, historico, usuarios, marcas,
       stats, funcionarios,
       podeSuperAdmin, podeAdmin, podeEditar,
-      handleSaveItem, handleDelete, handleMovimento,
+      handleSaveItem, handleDelete, handleMovimento, handleDevolucao,
       handleToggleUsuario, handleResetUserPassword,
       handleRenomearUsuario, handleAlterarSenha,
       handleCriarUsuario, handleUploadAvatar,
       handleAddMarca, handleDeleteMarca,
+      handleToggleManutencao,
       handleLogout,
     }}>
       {children}

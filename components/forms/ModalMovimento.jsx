@@ -4,11 +4,12 @@ import { Modal, Btn } from "@/components/ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowDown, faArrowUp, faPen, faTriangleExclamation,
-  faCircleCheck, faTruck,
+  faCircleCheck, faTruck, faRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 
-export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClose, t }) {
-  const isEntrada = tipo === "entrada";
+export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClose, t, semFuncionario = false }) {
+  const isEntrada   = tipo === "entrada";
+  const isDevolucao = tipo === "devolucao";
   const [busca, setBusca]         = useState(itemInicial?.nome ?? "");
   const [sugestoes, setSugestoes] = useState([]);
   const [itemSel, setItemSel]     = useState(itemInicial ?? null);
@@ -20,8 +21,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
   const [depto, setDepto]         = useState("TI");
   const [obs, setObs]             = useState("");
 
-  const maxQty   = isEntrada ? 9999 : (itemSel?.qtdDisponivel ?? 0);
-  const canSave  = isEntrada ? (busca.trim().length > 0 && qty >= 1) : (!!itemSel && qty >= 1 && qty <= maxQty && func.trim().length > 0);
+  // max(1, qtdFora) para cobrir dados inconsistentes subidos direto no DB
+  const maxDevolver = isDevolucao ? Math.max(1, (itemInicial?.qtdTotal ?? 0) - (itemInicial?.qtdDisponivel ?? 0)) : 0;
+  const maxQty   = isEntrada ? 9999 : isDevolucao ? maxDevolver : (itemSel?.qtdDisponivel ?? 0);
+  const canSave  = isDevolucao ? (qty >= 1 && qty <= maxDevolver) : isEntrada ? (busca.trim().length > 0 && qty >= 1) : (!!itemSel && qty >= 1 && qty <= maxQty && func.trim().length > 0);
+  // Quando semFuncionario=true, não há campo de destinatário na entrada
   const inp = { padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, fontSize: 14, color: t.text, background: t.inputBg, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" };
   const lbl = { fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 };
 
@@ -39,6 +43,44 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
     if (item.funcionario && item.funcionario !== "—") setFunc(item.funcionario);
   };
   const limparItem = () => { setItemSel(null); setBusca(""); setSerial(""); setPatrimonio(""); setSugestoes([]); setShowDrop(false); };
+
+  if (isDevolucao) {
+    const item = itemInicial;
+    return (
+      <Modal
+        titulo={<span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><FontAwesomeIcon icon={faRotateLeft} /> Devolver ao Estoque</span>}
+        onClose={onClose} t={t} maxW={460}
+      >
+        <div style={{ background: t.surface, borderRadius: 12, padding: "12px 16px", marginBottom: 16, border: `1px solid ${t.border}` }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item?.nome}</div>
+          <div style={{ fontSize: 12, color: t.textFaint }}>Atualmente com: <strong style={{ color: t.danger }}>{item?.funcionario}</strong> · {item?.departamento}</div>
+          <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>Unidades fora: {maxDevolver} · Total: {item?.qtdTotal}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 }}>Quantidade a devolver</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setQty(Math.max(1, qty - 1))} style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.surface, color: "#EF4444", fontWeight: 700, fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>−</button>
+              <input type="number" min={1} max={maxDevolver} value={qty} onChange={(e) => setQty(Math.min(maxDevolver, Math.max(1, parseInt(e.target.value) || 1)))} style={{ width: 80, textAlign: "center", padding: "8px", borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.inputBg, color: t.text, fontSize: 18, fontWeight: 700, fontFamily: "inherit", outline: "none" }} />
+              <button onClick={() => setQty(Math.min(maxDevolver, qty + 1))} style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.surface, color: "#10B981", fontWeight: 700, fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>+</button>
+              <span style={{ fontSize: 12, color: t.textFaint }}>máx {maxDevolver}</span>
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 6 }}>Observação <span style={{ fontWeight: 400, textTransform: "none", color: t.textFaint }}>(opcional)</span></label>
+            <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex: Funcionário desligado, equipamento substituído…" style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, fontSize: 14, color: t.text, background: t.inputBg, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" }} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+          <Btn onClick={onClose} variant="ghost" t={t}>Cancelar</Btn>
+          <Btn onClick={() => onSave({ qty, obs })} variant="primary" t={t} disabled={!canSave}>
+            <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: 6 }} />
+            Confirmar Devolução (+{qty})
+          </Btn>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -87,7 +129,7 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
         )}
       </div>
 
-      {itemSel && isEntrada && (
+      {itemSel && isEntrada && (!func.trim() || semFuncionario) && (
         <div style={{ background: t.successBg, border: `1px solid ${t.success}44`, borderRadius: 12, padding: "10px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.success, display: "flex", alignItems: "center", gap: 6 }}>
@@ -97,6 +139,18 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
             <div style={{ fontSize: 11, color: t.textFaint }}>Atual: {itemSel.qtdDisponivel}/{itemSel.qtdTotal}</div>
           </div>
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: t.textFaint }}>Após entrada</div><div style={{ fontSize: 17, fontWeight: 800, color: t.success }}>+{qty} → {itemSel.qtdDisponivel + qty}</div></div>
+        </div>
+      )}
+      {itemSel && isEntrada && func.trim() && !semFuncionario && (
+        <div style={{ background: t.dangerBg, border: `1px solid ${t.danger}44`, borderRadius: 12, padding: "10px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.danger, display: "flex", alignItems: "center", gap: 6 }}>
+              {CAT_ICONS[itemSel.categoria] && <FontAwesomeIcon icon={CAT_ICONS[itemSel.categoria]} />}
+              {itemSel.nome}
+            </div>
+            <div style={{ fontSize: 11, color: t.textFaint }}>Entrega direta para <strong>{func}</strong> · Disp.: {itemSel.qtdDisponivel}</div>
+          </div>
+          <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: t.textFaint }}>Após entrega</div><div style={{ fontSize: 17, fontWeight: 800, color: t.danger }}>−{qty} → {Math.max(0, itemSel.qtdDisponivel - qty)}</div></div>
         </div>
       )}
       {itemSel && !isEntrada && (
@@ -137,12 +191,18 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
           )}
         </div>
 
-        {isEntrada && (
+        {isEntrada && !semFuncionario && (
           <div>
             <label style={lbl}>
-              Recebido de / Retirado de <span style={{ fontWeight: 400, textTransform: "none", color: t.textFaint }}>(quem devolveu, funcionário demitido, fornecedor…)</span>
+              Entregar para funcionário{" "}
+              <span style={{ fontWeight: 400, textTransform: "none", color: t.textFaint }}>(opcional — deixe vazio se for pro estoque)</span>
             </label>
-            <input value={func} onChange={(e) => setFunc(e.target.value)} placeholder="Ex: Lara Souza, Gustavo, Fornecedor ABC…" style={inp} />
+            <input value={func} onChange={(e) => setFunc(e.target.value)} placeholder="Ex: Gustavo, Lara Souza… (deixe vazio p/ estoque)" style={{ ...inp, border: func.trim() ? `1.5px solid ${t.danger}88` : `1px solid ${t.borderMed}` }} />
+            {func.trim() && (
+              <div style={{ fontSize: 11, color: t.danger, marginTop: 4, fontWeight: 600 }}>
+                ⚠ Entrega direta — o item será retirado do estoque e atribuído a {func}.
+              </div>
+            )}
           </div>
         )}
 
@@ -175,11 +235,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
         <Btn onClick={onClose} variant="ghost" t={t}>Cancelar</Btn>
         <Btn
-          onClick={() => onSave({ itemSel, nomeItem: busca.trim(), serial, patrimonio, qty, func, depto, obs })}
-          variant={isEntrada ? "success" : "danger"} t={t} disabled={!canSave}
+          onClick={() => onSave({ itemSel, nomeItem: busca.trim(), serial, patrimonio, qty, func: semFuncionario ? "" : func, depto, obs })}
+          variant={isEntrada && (semFuncionario || !func.trim()) ? "success" : "danger"} t={t} disabled={!canSave}
         >
-          <FontAwesomeIcon icon={isEntrada ? faCircleCheck : faTruck} style={{ marginRight: 6 }} />
-          {isEntrada ? `Confirmar Entrada (+${qty})` : `Confirmar Saída (−${qty})`}
+          <FontAwesomeIcon icon={isEntrada && (semFuncionario || !func.trim()) ? faCircleCheck : faTruck} style={{ marginRight: 6 }} />
+          {isEntrada && (semFuncionario || !func.trim()) ? `Confirmar Entrada (+${qty})` : isEntrada && func.trim() ? `Confirmar Entrega (−${qty})` : `Confirmar Saída (−${qty})`}
         </Btn>
       </div>
     </Modal>

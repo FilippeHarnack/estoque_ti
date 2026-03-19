@@ -5,7 +5,7 @@ import Header from "@/components/layout/Header";
 import { StatusBadge } from "@/components/ui";
 import { CAT_ICONS, hoje } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBolt, faCrown } from "@fortawesome/free-solid-svg-icons";
+import { faBolt, faCrown, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
 
 const PERFIL_BADGE = {
   super_admin: { label: "Super Admin", icon: faBolt,  bg: "#1e1b4b", cor: "#c4b5fd" },
@@ -29,6 +29,15 @@ export default function HistoricoPage() {
     });
   }, [historico, periodo]);
 
+  // Ordenar itens: os com movimentação mais recente aparecem primeiro
+  const itensOrdenados = useMemo(() => {
+    const primeiroIdx = (id) => {
+      const idx = histFiltrado.findIndex((h) => h.itemId === id);
+      return idx === -1 ? Infinity : idx;
+    };
+    return [...itens].sort((a, b) => primeiroIdx(a.id) - primeiroIdx(b.id));
+  }, [itens, histFiltrado]);
+
   return (
     <>
       <Header title="Histórico por Item" />
@@ -46,7 +55,7 @@ export default function HistoricoPage() {
             <span style={{ marginLeft: "auto", fontSize: 12, color: t.textFaint }}>{histFiltrado.length} registro{histFiltrado.length !== 1 ? "s" : ""}</span>
           </div>
 
-          {itens.map((item) => {
+          {itensOrdenados.map((item) => {
             const hItem = histFiltrado.filter((h) => h.itemId === item.id);
             if (!hItem.length) return null;
             return (
@@ -70,17 +79,23 @@ export default function HistoricoPage() {
                     return (
                       <div key={h.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${t.border}` }}>
 
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: h.tipo === "entrada" ? t.success : t.danger, flexShrink: 0, marginTop: 5 }} />
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : t.danger, flexShrink: 0, marginTop: 5 }} />
 
                         <span style={{ fontSize: 12, color: t.textFaint, width: 88, flexShrink: 0, paddingTop: 2 }}>{h.data}</span>
 
-                        <span style={{ fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? t.success : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
-                          {h.tipo === "entrada" ? "+" : "-"}{h.qty} un.
+                        <span style={{ fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
+                          {h.tipo === "entrada" ? "+" : h.tipo === "ajuste" ? "~" : h.tipo === "devolucao" ? "↩" : "-"}{h.qty} un.
                         </span>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: t.text, fontWeight: 500, marginBottom: 4 }}>
-                            {h.tipo === "entrada" ? (
+                            {h.tipo === "ajuste" ? (
+                              <span style={{ color: "#F59E0B" }}>Ajuste manual de estoque</span>
+                            ) : h.tipo === "devolucao" ? (
+                              temFunc
+                                ? <span>Devolvido por <strong style={{ color: "#60A5FA" }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textFaint, fontWeight: 400 }}> · {h.depto}</span>}</span>
+                                : <span style={{ color: "#60A5FA" }}>Devolvido ao estoque</span>
+                            ) : h.tipo === "entrada" ? (
                               temFunc
                                 ? <span>Entrada recebida de <strong style={{ color: t.success }}>{h.funcionario}</strong></span>
                                 : <span style={{ color: t.textMuted }}>Entrada em estoque</span>

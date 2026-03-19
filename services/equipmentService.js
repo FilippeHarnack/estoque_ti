@@ -36,6 +36,45 @@ export async function deleteEquipamento(id) {
   if (error) throw error;
 }
 
+/**
+ * Cria um registro separado de manutenção para qty unidades e reduz o item original.
+ * Usado quando apenas parte das unidades de um item vai para manutenção.
+ */
+export async function splitEquipamentoManutencao(item, qty) {
+  // 1. Reduz o item original
+  const { data: orig, error: e1 } = await supabase
+    .from("equipamentos")
+    .update({ qtd_total: item.qtdTotal - qty })
+    .eq("id", item.id)
+    .select()
+    .single();
+  if (e1) throw e1;
+
+  // 2. Cria novo registro de manutenção
+  const { data: manut, error: e2 } = await supabase
+    .from("equipamentos")
+    .insert([{
+      nome:           item.nome,
+      categoria:      item.categoria,
+      marca:          item.marca,
+      modelo:         item.modelo,
+      serial:         item.serial || "—",
+      patrimonio:     item.patrimonio || "—",
+      funcionario:    item.funcionario || "—",
+      departamento:   item.departamento || "—",
+      status:         "Manutenção",
+      data_compra:    item.dataCompra || null,
+      notas:          `Em manutenção (${qty} un.)`,
+      qtd_total:      qty,
+      qtd_disponivel: 0,
+    }])
+    .select()
+    .single();
+  if (e2) throw e2;
+
+  return { updatedOriginal: mapEquip(orig), createdManut: mapEquip(manut) };
+}
+
 export function buildEquipPayload(form) {
   return {
     nome:           form.nome,

@@ -8,15 +8,16 @@ import FormItem from "@/components/forms/FormItem";
 import ModalMovimento from "@/components/forms/ModalMovimento";
 import { CAT_ICONS, CAT_FILTROS, STATUS_FILTROS, DEPARTAMENTOS, CATEGORIAS_ITENS } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding, faIndustry } from "@fortawesome/free-solid-svg-icons";
+import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding, faIndustry, faRotateLeft, faWrench } from "@fortawesome/free-solid-svg-icons";
+import ModalSaida from "@/components/forms/ModalSaida";
 
 export default function EquipamentosPage() {
-  const { t, dark, itens, marcas, podeAdmin, podeEditar, handleSaveItem, handleDelete, handleMovimento, funcionarios } = useApp();
+  const { t, dark, itens, marcas, podeAdmin, podeEditar, handleSaveItem, handleMovimento, handleDevolucao, handleToggleManutencao, funcionarios, usuarios } = useApp();
   const searchParams = useSearchParams();
 
   const [busca, setBusca]       = useState("");
   const [catFil, setCatFil]     = useState("Todas");
-  const [statusFil, setStatusFil] = useState("Todos");
+  const [statusFil, setStatusFil] = useState("Em Uso");
 
   useEffect(() => {
     const s = searchParams.get("status");
@@ -28,8 +29,10 @@ export default function EquipamentosPage() {
   const [selecionado, setSelecionado] = useState(null);
   const [editando, setEditando] = useState(null);
   const [adicionando, setAdicionando] = useState(false);
-  const [confirmDel, setConfirmDel]   = useState(null);
   const [movModal, setMovModal] = useState(null);
+  const [manutModal, setManutModal] = useState(null); // { item }
+  const [manutQty, setManutQty] = useState(1);
+  const [saidaModal, setSaidaModal] = useState(false);
 
   const sel = { padding: "6px 10px", borderRadius: 8, border: `1px solid ${t.borderMed}`, fontSize: 13, color: t.text, background: t.inputBg, cursor: "pointer", fontFamily: "inherit", outline: "none" };
 
@@ -41,7 +44,7 @@ export default function EquipamentosPage() {
 
   const marcasOpts = ["Todas", "Acer", "Apple", "Asus", "BRX", "Edifier", "Feltron", "Generic", "HP", "Intelbras", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung"];
 
-  const temFiltros = catFil !== "Todas" || statusFil !== "Todos" || deptFil !== "Todos" || funcFil !== "Todos" || marcaFil !== "Todas" || busca;
+  const temFiltros = catFil !== "Todas" || statusFil !== "Em Uso" || deptFil !== "Todos" || funcFil !== "Todos" || marcaFil !== "Todas" || busca;
 
   return (
     <>
@@ -91,7 +94,8 @@ export default function EquipamentosPage() {
             );
           })()}
 
-          <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 16px" }}>
+          <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 18px" }}>
+            {/* Header row */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 13, color: t.accent }}><FontAwesomeIcon icon={faFilter} /></span>
               <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>Filtros</span>
@@ -102,6 +106,8 @@ export default function EquipamentosPage() {
                 {filtrados.length} item{filtrados.length !== 1 ? "s" : ""}
               </span>
             </div>
+
+            {/* Filters + Nova Entrada on the same row */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               {[
                 { label: "Categoria", icon: faTag,       value: catFil,    onChange: setCatFil,    opts: CAT_FILTROS,    active: catFil    !== "Todas" },
@@ -127,10 +133,25 @@ export default function EquipamentosPage() {
                 </select>
               </div>
               {temFiltros && (
-                <button onClick={() => { setCatFil("Todas"); setStatusFil("Todos"); setDeptFil("Todos"); setFuncFil("Todos"); setMarcaFil("Todas"); setBusca(""); }}
-                  style={{ padding: "7px 13px", borderRadius: 8, border: `1px solid ${t.dangerBdr}`, background: t.dangerBg, color: t.danger, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, display: "flex", alignItems: "center", gap: 5, alignSelf: "flex-end" }}>
+                <button onClick={() => { setCatFil("Todas"); setStatusFil("Em Uso"); setDeptFil("Todos"); setFuncFil("Todos"); setMarcaFil("Todas"); setBusca(""); }}
+                  style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${t.dangerBdr}`, background: t.dangerBg, color: t.danger, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
                   <FontAwesomeIcon icon={faXmark} /> Limpar
                 </button>
+              )}
+              {/* Botões de ação — alinhados ao final */}
+              {podeAdmin && (
+                <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setSaidaModal(true)}
+                    style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#EF4444", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                    <FontAwesomeIcon icon={faArrowUp} /> Saída
+                  </button>
+                  <button
+                    onClick={() => setMovModal({ tipo: "entrada", item: null })}
+                    style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#10B981", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                    <FontAwesomeIcon icon={faArrowDown} /> Nova Entrada
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -156,14 +177,50 @@ export default function EquipamentosPage() {
               { label: "Status",     render: (r) => <StatusBadge status={r.status} dark={dark} /> },
               { label: "Funcionário",render: (r) => <span style={{ color: t.text, fontSize: 12 }}>{r.funcionario && r.funcionario !== "—" ? r.funcionario : <span style={{ color: t.textFaint }}>—</span>}</span> },
               {
-                label: "Ações", render: (r) => (
-                  <div style={{ display: "flex", gap: 5 }} onClick={(e) => e.stopPropagation()}>
-                    {podeAdmin  && <Btn small t={t} variant="success" onClick={() => setMovModal({ tipo: "entrada", item: r })}>+Entrada</Btn>}
-                    {podeAdmin  && <Btn small t={t} variant="danger"  onClick={() => setMovModal({ tipo: "saida",   item: r })}>−Saída</Btn>}
-                    {podeEditar && <Btn small t={t} variant="ghost"   onClick={() => setEditando(r)}>Editar</Btn>}
-                    {podeAdmin  && <Btn small t={t} variant="danger"  onClick={() => setConfirmDel(r)}>Excluir</Btn>}
-                  </div>
-                )
+                label: "Ações", render: (r) => {
+                  const temFunc = r.funcionario && r.funcionario !== "—";
+                  const btnStyle = { padding: "5px 11px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 72, textAlign: "center" };
+                  return (
+                    <div style={{ display: "flex", gap: 5 }} onClick={(e) => e.stopPropagation()}>
+                      {podeAdmin && (
+                        <button onClick={() => setMovModal({ tipo: "saida", item: r })}
+                          style={{ ...btnStyle, background: "#EF4444", color: "#fff" }}>
+                          −Saída
+                        </button>
+                      )}
+                      {podeAdmin && (
+                        <button
+                          onClick={() => temFunc && setMovModal({ tipo: "devolucao", item: r })}
+                          style={{ ...btnStyle, background: temFunc ? "#F59E0B" : t.surface, color: temFunc ? "#fff" : t.textFaint, border: temFunc ? "none" : `1px solid ${t.borderMed}`, opacity: temFunc ? 1 : 0.4, cursor: temFunc ? "pointer" : "default" }}>
+                          <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: 4 }} />Devolver
+                        </button>
+                      )}
+                      {podeAdmin && (
+                        <button
+                          onClick={() => {
+                            if (r.status === "Manutenção") {
+                              handleToggleManutencao(r);
+                            } else if (r.qtdTotal <= 1) {
+                              handleToggleManutencao(r, r.qtdTotal);
+                            } else {
+                              setManutQty(1);
+                              setManutModal({ item: r });
+                            }
+                          }}
+                          style={{ ...btnStyle, background: r.status === "Manutenção" ? "#F59E0B" : "#F59E0B18", color: r.status === "Manutenção" ? "#fff" : "#F59E0B", border: r.status === "Manutenção" ? "none" : "1px solid #F59E0B55" }}>
+                          <FontAwesomeIcon icon={faWrench} style={{ marginRight: 4 }} />
+                          {r.status === "Manutenção" ? "Retornar" : "Manut."}
+                        </button>
+                      )}
+                      {podeEditar && (
+                        <button onClick={() => setEditando(r)}
+                          style={{ ...btnStyle, background: t.surface, color: t.text, border: `1px solid ${t.borderMed}` }}>
+                          Editar
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
               },
             ]}
             rows={filtrados}
@@ -193,14 +250,14 @@ export default function EquipamentosPage() {
           </div>
           {selecionado.notas && <div style={{ background: t.bg, borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}><div style={{ fontSize: 10, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Observações</div><div style={{ fontSize: 13, color: t.textMuted }}>{selecionado.notas}</div></div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            {podeAdmin  && (
-              <Btn t={t} variant="success" small onClick={() => { setMovModal({ tipo: "entrada", item: selecionado }); setSelecionado(null); }}>
-                <FontAwesomeIcon icon={faArrowDown} style={{ marginRight: 5 }} /> Entrada
+            {podeAdmin && (
+              <Btn t={t} variant="danger" small onClick={() => { setMovModal({ tipo: "saida", item: selecionado }); setSelecionado(null); }}>
+                −Saída
               </Btn>
             )}
-            {podeAdmin  && (
-              <Btn t={t} variant="danger" small onClick={() => { setMovModal({ tipo: "saida", item: selecionado }); setSelecionado(null); }}>
-                <FontAwesomeIcon icon={faArrowUp} style={{ marginRight: 5 }} /> Saída
+            {podeAdmin && selecionado.funcionario && selecionado.funcionario !== "—" && (
+              <Btn t={t} variant="warning" small onClick={() => { setMovModal({ tipo: "devolucao", item: selecionado }); setSelecionado(null); }}>
+                <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: 5 }} /> Devolver
               </Btn>
             )}
             {podeEditar && <Btn t={t} variant="ghost" small onClick={() => { setEditando(selecionado); setSelecionado(null); }}>Editar</Btn>}
@@ -221,20 +278,110 @@ export default function EquipamentosPage() {
         </Modal>
       )}
 
-      {confirmDel && (
-        <Modal titulo="Excluir Equipamento?" onClose={() => setConfirmDel(null)} t={t} maxW={420}>
-          <div style={{ background: t.dangerBg, border: `1px solid ${t.dangerBdr}`, borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
-            <p style={{ color: t.text, fontSize: 14, margin: 0 }}>Tem certeza que deseja excluir <strong>{confirmDel.nome}</strong>?<br /><span style={{ color: t.textFaint, fontSize: 13 }}>Esta ação não pode ser desfeita.</span></p>
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <Btn onClick={() => setConfirmDel(null)} variant="ghost" t={t}>Cancelar</Btn>
-            <Btn onClick={() => { handleDelete(confirmDel.id); setConfirmDel(null); }} variant="danger" t={t}>Sim, Excluir</Btn>
-          </div>
-        </Modal>
-      )}
 
       {movModal && (
-        <ModalMovimento tipo={movModal.tipo} itemInicial={movModal.item} itens={itens} onSave={(params) => { handleMovimento({ tipo: movModal.tipo, ...params }); setMovModal(null); }} onClose={() => setMovModal(null)} t={t} />
+        <ModalMovimento tipo={movModal.tipo} itemInicial={movModal.item} itens={itens}
+          semFuncionario={movModal.tipo === "entrada"}
+          onSave={async (params) => {
+            setMovModal(null);
+            if (movModal.tipo === "devolucao") {
+              await handleDevolucao({ item: movModal.item, ...params });
+            } else {
+              await handleMovimento({ tipo: movModal.tipo, ...params });
+            }
+          }}
+          onClose={() => setMovModal(null)} t={t} />
+      )}
+
+      {saidaModal && (
+        <ModalSaida
+          itens={itens}
+          funcionarios={funcionarios}
+          onSave={async (params) => {
+            setSaidaModal(false);
+            await handleMovimento({ tipo: "saida", ...params });
+          }}
+          onClose={() => setSaidaModal(false)}
+          t={t}
+        />
+      )}
+
+      {manutModal && (
+        <Modal titulo="Enviar para Manutenção" onClose={() => setManutModal(null)} t={t} maxW={420}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Item info */}
+            <div style={{ background: t.bg, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: "#F59E0B18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <FontAwesomeIcon icon={faWrench} style={{ color: "#F59E0B", fontSize: 18 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: t.text }}>{manutModal.item.nome}</div>
+                <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>
+                  {manutModal.item.qtdTotal} unidade{manutModal.item.qtdTotal !== 1 ? "s" : ""} com {manutModal.item.funcionario !== "—" ? manutModal.item.funcionario : "estoque"}
+                </div>
+              </div>
+            </div>
+
+            {/* Qty input */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+                Quantas unidades entram em manutenção?
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <button
+                  onClick={() => setManutQty((q) => Math.max(1, q - 1))}
+                  style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${t.borderMed}`, background: t.surface, color: t.text, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  −
+                </button>
+                <input
+                  type="number" min={1} max={manutModal.item.qtdTotal} value={manutQty}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value) || 1;
+                    setManutQty(Math.max(1, Math.min(manutModal.item.qtdTotal, v)));
+                  }}
+                  style={{ width: 70, textAlign: "center", padding: "8px 10px", borderRadius: 8, border: `1.5px solid #F59E0B`, background: t.bg, color: t.text, fontSize: 18, fontWeight: 700, fontFamily: "inherit", outline: "none" }}
+                />
+                <button
+                  onClick={() => setManutQty((q) => Math.min(manutModal.item.qtdTotal, q + 1))}
+                  style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${t.borderMed}`, background: t.surface, color: t.text, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  +
+                </button>
+                <span style={{ fontSize: 13, color: t.textFaint }}>
+                  de {manutModal.item.qtdTotal} total
+                </span>
+              </div>
+
+              {/* Preview */}
+              <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "#F59E0B0D", border: "1px solid #F59E0B33", fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>
+                {manutQty < manutModal.item.qtdTotal ? (
+                  <>
+                    <strong style={{ color: "#F59E0B" }}>{manutQty}</strong> unidade{manutQty !== 1 ? "s" : ""} → <strong>Manutenção</strong>
+                    <br />
+                    <strong style={{ color: t.text }}>{manutModal.item.qtdTotal - manutQty}</strong> unidade{manutModal.item.qtdTotal - manutQty !== 1 ? "s" : ""} → permanecem com {manutModal.item.funcionario !== "—" ? manutModal.item.funcionario : "estoque"}
+                  </>
+                ) : (
+                  <>Todas as <strong style={{ color: "#F59E0B" }}>{manutQty}</strong> unidades → <strong>Manutenção</strong></>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setManutModal(null)}
+                style={{ padding: "9px 18px", borderRadius: 10, border: `1px solid ${t.borderMed}`, background: "none", color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancelar
+              </button>
+              <button onClick={async () => {
+                  const item = manutModal.item;
+                  setManutModal(null);
+                  await handleToggleManutencao(item, manutQty);
+                }}
+                style={{ padding: "9px 22px", borderRadius: 10, border: "none", background: "#F59E0B", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
+                <FontAwesomeIcon icon={faWrench} /> Confirmar Manutenção
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </>
   );

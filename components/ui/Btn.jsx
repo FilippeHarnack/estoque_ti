@@ -4,6 +4,7 @@ export default function Btn({ onClick, children, variant = "primary", small, t, 
     danger:  { background: t.danger,   color: "#fff", border: "none" },
     ghost:   { background: t.surface,  color: t.textMuted, border: `1px solid ${t.borderMed}` },
     success: { background: t.success,  color: "#fff", border: "none" },
+    warning: { background: "#F59E0B",  color: "#fff", border: "none" },
   };
   return (
     <button

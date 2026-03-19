@@ -7,7 +7,7 @@ import { CATEGORIAS_ITENS, CAT_ICONS, hoje } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowDown, faArrowUp, faBriefcase, faWrench, faChartBar, faUser,
-  faFileArrowDown, faXmark,
+  faFileArrowDown, faXmark, faBoxOpen,
 } from "@fortawesome/free-solid-svg-icons";
 
 /* ─── Gráfico SVG ─── */
@@ -277,6 +277,7 @@ export default function RelatoriosPage() {
   const { t, dark, itens, historico, stats } = useApp();
   const [periodo, setPeriodo]         = useState("mes");
   const [modalAberto, setModalAberto] = useState(false);
+  const [catRel, setCatRel]           = useState("Todas");
 
   const histFiltrado = useMemo(() => {
     const agora = new Date(); const hj = hoje();
@@ -291,6 +292,10 @@ export default function RelatoriosPage() {
     const lista = itens.filter((i) => i.categoria === cat);
     return { cat, total: lista.length, unidades: lista.reduce((s, i) => s + i.qtdTotal, 0), disponiveis: lista.reduce((s, i) => s + i.qtdDisponivel, 0) };
   }).filter((r) => r.total > 0), [itens]);
+
+  const relCategoriaFiltrada = useMemo(() =>
+    catRel === "Todas" ? relCategoria : relCategoria.filter((r) => r.cat === catRel),
+  [relCategoria, catRel]);
 
   const headerActions = (
     <button onClick={() => setModalAberto(true)}
@@ -319,6 +324,7 @@ export default function RelatoriosPage() {
             <StatCard t={t} label="Entradas no Período" icon={<FontAwesomeIcon icon={faArrowDown} />} accent="#10B981" value={histFiltrado.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0)} sub="unidades recebidas" />
             <StatCard t={t} label="Saídas no Período"   icon={<FontAwesomeIcon icon={faArrowUp} />}   accent="#EF4444" value={histFiltrado.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0)} sub="unidades distribuídas" />
             <StatCard t={t} label="Em Uso"               icon={<FontAwesomeIcon icon={faBriefcase} />} accent="#3B82F6" value={stats.emUso}      sub={`de ${stats.total} itens`} />
+            <StatCard t={t} label="Disponível"           icon={<FontAwesomeIcon icon={faBoxOpen} />}   accent="#10B981" value={stats.dispUnid}    sub="unidades disponíveis" />
             <StatCard t={t} label="Em Manutenção"        icon={<FontAwesomeIcon icon={faWrench} />}    accent="#F59E0B" value={stats.manutencao} sub="necessitam atenção" />
           </div>
 
@@ -326,6 +332,10 @@ export default function RelatoriosPage() {
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: 8 }}>
               <FontAwesomeIcon icon={faChartBar} style={{ color: t.accent }} />
               <span style={{ fontWeight: 700, fontSize: 14, color: t.text }}>Relatório por Categoria</span>
+              <select value={catRel} onChange={(e) => setCatRel(e.target.value)}
+                style={{ marginLeft: "auto", padding: "5px 10px", borderRadius: 8, border: `1px solid ${catRel !== "Todas" ? t.accent : t.borderMed}`, fontSize: 12, color: catRel !== "Todas" ? t.accent : t.text, background: t.bg, fontFamily: "inherit", cursor: "pointer", outline: "none", fontWeight: catRel !== "Todas" ? 700 : 400 }}>
+                {["Todas", ...CATEGORIAS_ITENS].map((c) => <option key={c}>{c}</option>)}
+              </select>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -336,7 +346,7 @@ export default function RelatoriosPage() {
                 </tr>
               </thead>
               <tbody>
-                {relCategoria.map((r, i) => {
+                {relCategoriaFiltrada.map((r, i) => {
                   const pct = r.unidades ? Math.round((r.disponiveis / r.unidades) * 100) : 0;
                   return (
                     <tr key={r.cat} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
@@ -386,7 +396,7 @@ export default function RelatoriosPage() {
                 { label: "Departamento", render: (r) => <span style={{ color: t.textMuted }}>{r.departamento === "-" ? "—" : r.departamento}</span> },
                 { label: "Status",       render: (r) => <StatusBadge status={r.status} dark={dark} /> },
               ]}
-              rows={itens.filter((i) => i.status === "Em Uso")}
+              rows={itens.filter((i) => i.status === "Em Uso" && i.funcionario && i.funcionario !== "—")}
             />
           </div>
         </div>
