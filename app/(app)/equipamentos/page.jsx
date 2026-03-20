@@ -191,7 +191,7 @@ export default function EquipamentosPage() {
                       {podeAdmin && (
                         <button
                           onClick={() => temFunc && setMovModal({ tipo: "devolucao", item: r })}
-                          style={{ ...btnStyle, background: temFunc ? "#F59E0B" : t.surface, color: temFunc ? "#fff" : t.textFaint, border: temFunc ? "none" : `1px solid ${t.borderMed}`, opacity: temFunc ? 1 : 0.4, cursor: temFunc ? "pointer" : "default" }}>
+                          style={{ ...btnStyle, background: temFunc ? "#3B82F6" : t.surface, color: temFunc ? "#fff" : t.textFaint, border: temFunc ? "none" : `1px solid ${t.borderMed}`, opacity: temFunc ? 1 : 0.4, cursor: temFunc ? "pointer" : "default" }}>
                           <FontAwesomeIcon icon={faRotateLeft} style={{ marginRight: 4 }} />Devolver
                         </button>
                       )}
