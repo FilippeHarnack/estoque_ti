@@ -5,13 +5,14 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHouse, faBoxesStacked, faArrowsUpDown, faClipboardList,
   faChartBar, faShieldHalved, faCubes, faRightFromBracket,
-  faChevronLeft, faChevronRight,
+  faChevronLeft, faChevronRight, faBuilding,
 } from "@fortawesome/free-solid-svg-icons";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 const NAV_ITEMS = [
   { href: "/dashboard",      icon: faHouse,         label: "Visão Geral"   },
   { href: "/equipamentos",   icon: faBoxesStacked,  label: "Equipamentos"  },
+  { href: "/areas-comuns",   icon: faBuilding,      label: "Áreas Comuns"  },
   { href: "/movimentacoes",  icon: faArrowsUpDown,  label: "Movimentações" },
   { href: "/historico",      icon: faClipboardList, label: "Histórico"     },
   { href: "/relatorios",     icon: faChartBar,      label: "Relatórios"    },

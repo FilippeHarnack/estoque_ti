@@ -42,7 +42,9 @@ export default function EquipamentosPage() {
     return mB && (catFil === "Todas" || a.categoria === catFil) && (statusFil === "Todos" || a.status === statusFil) && (deptFil === "Todos" || a.departamento === deptFil) && (funcFil === "Todos" || a.funcionario === funcFil) && (marcaFil === "Todas" || a.marca === marcaFil);
   }), [itens, busca, catFil, statusFil, deptFil, funcFil, marcaFil]);
 
-  const marcasOpts = ["Todas", "Acer", "Apple", "Asus", "BRX", "Edifier", "Feltron", "Generic", "HP", "Intelbras", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung"];
+  // Categorias e marcas derivadas dos dados reais
+  const catOpts = useMemo(() => ["Todas", ...[...new Set(itens.map((i) => i.categoria).filter(Boolean))].sort()], [itens]);
+  const marcasOpts = useMemo(() => ["Todas", ...[...new Set(itens.map((i) => i.marca).filter((m) => m && m !== "—"))].sort()], [itens]);
 
   const temFiltros = catFil !== "Todas" || statusFil !== "Em Uso" || deptFil !== "Todos" || funcFil !== "Todos" || marcaFil !== "Todas" || busca;
 
@@ -56,14 +58,13 @@ export default function EquipamentosPage() {
 
           {/* ── Resumo por Categoria ── */}
           {(() => {
-            const cats = CATEGORIAS_ITENS.map((cat) => {
+            const cats = catOpts.slice(1).map((cat) => {
               const lista = itens.filter((i) => i.categoria === cat);
-              if (!lista.length) return null;
               const total = lista.reduce((s, i) => s + i.qtdTotal, 0);
               const disp  = lista.reduce((s, i) => s + i.qtdDisponivel, 0);
               const pct   = total ? Math.round((disp / total) * 100) : 0;
               return { cat, total, disp, pct };
-            }).filter(Boolean);
+            });
             if (!cats.length) return null;
             return (
               <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 16px" }}>
@@ -110,7 +111,7 @@ export default function EquipamentosPage() {
             {/* Filters + Nova Entrada on the same row */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               {[
-                { label: "Categoria", icon: faTag,       value: catFil,    onChange: setCatFil,    opts: CAT_FILTROS,    active: catFil    !== "Todas" },
+                { label: "Categoria", icon: faTag,       value: catFil,    onChange: setCatFil,    opts: catOpts,        active: catFil    !== "Todas" },
                 { label: "Status",    icon: faCircleDot, value: statusFil, onChange: setStatusFil, opts: STATUS_FILTROS, active: statusFil !== "Todos" },
                 { label: "Depto.",    icon: faBuilding,  value: deptFil,   onChange: setDeptFil,   opts: DEPARTAMENTOS,  active: deptFil   !== "Todos" },
                 { label: "Marca",     icon: faIndustry,  value: marcaFil,  onChange: setMarcaFil,  opts: marcasOpts,     active: marcaFil  !== "Todas" },

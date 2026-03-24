@@ -3,11 +3,12 @@ import { useState } from "react";
 import { AppProvider, useApp } from "@/contexts/AppContext";
 import Sidebar from "@/components/layout/Sidebar";
 import TelaLogin from "@/components/auth/TelaLogin";
+import TelaUnidade from "@/components/auth/TelaUnidade";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBoxOpen } from "@fortawesome/free-solid-svg-icons";
 
 function AppShell({ children }) {
-  const { carregando, erroDb, sessao, t } = useApp();
+  const { carregando, erroDb, sessao, unidade, t } = useApp();
   const [collapsed, setCollapsed] = useState(false);
 
   if (carregando) {
@@ -23,7 +24,8 @@ function AppShell({ children }) {
     );
   }
 
-  if (!sessao) return <TelaLogin />;
+  if (!unidade) return <TelaUnidade />;
+  if (!sessao) return <TelaLogin erroDb={erroDb} />;
 
   return (
     <div style={{ fontFamily: "'DM Sans','Segoe UI',sans-serif", display: "flex", height: "100vh", background: t.bg, color: t.text, overflow: "hidden" }}>

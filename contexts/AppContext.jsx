@@ -1,8 +1,7 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "@/services/supabase";
+import { getDb, getEdgeFnUrl } from "@/services/supabase";
 import { buildTheme } from "@/lib/theme";
-import { mapUsuario } from "@/lib/mappers";
 import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload, splitEquipamentoManutencao } from "@/services/equipmentService";
 import { getAllMovimentos, processarMovimento, processarDevolucao, registrarAjusteManual, registrarSaidaCadastro } from "@/services/movementService";
 import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
@@ -16,6 +15,22 @@ export function AppProvider({ children }) {
   });
   useEffect(() => { try { localStorage.setItem("ti_dark", dark ? "1" : "0"); } catch {} }, [dark]);
   const t = useMemo(() => buildTheme(dark), [dark]);
+
+  const [unidade, setUnidadeState] = useState(() => {
+    try { return localStorage.getItem("ti_unidade") || null; } catch { return null; }
+  });
+  const setUnidade = useCallback((val) => {
+    try { localStorage.setItem("ti_unidade", val); } catch {}
+    setUnidadeState(val);
+    // Limpa sessão ao trocar de unidade para forçar novo login
+    setSessao(null);
+    setAuthUser(null);
+    setItens([]); setHistorico([]); setUsuarios([]);
+  }, []);
+
+  // Cliente Supabase correto para a unidade atual
+  const db = useMemo(() => getDb(unidade), [unidade]);
+  const edgeFnUrl = useMemo(() => getEdgeFnUrl(unidade), [unidade]);
 
   const [sessao, setSessao]       = useState(null);
   const [authUser, setAuthUser]   = useState(null);
@@ -32,10 +47,10 @@ export function AppProvider({ children }) {
     setErroDb("");
     try {
       const [equip, movs, usrs, mrcs] = await Promise.all([
-        getAllEquipamentos(),
-        getAllMovimentos(),
-        getAllUsuarios(),
-        getAllMarcas().catch(() => []),
+        getAllEquipamentos(db, unidade),
+        getAllMovimentos(db, unidade),
+        getAllUsuarios(db, unidade),
+        getAllMarcas(db, unidade).catch(() => []),
       ]);
       setItens(equip);
       setHistorico(movs);
@@ -44,7 +59,7 @@ export function AppProvider({ children }) {
 
       const perfil = usrs.find((u) => u.authId === authUserObj.id);
       if (perfil) {
-        const agora = await updateLastLogin(authUserObj.id);
+        const agora = await updateLastLogin(db, authUserObj.id);
         setSessao({ ...perfil, email: perfil.email || authUserObj.email, ultimoLogin: agora });
       } else {
         setSessao({
@@ -53,20 +68,26 @@ export function AppProvider({ children }) {
           ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString(),
         });
       }
-    } catch {
-      setErroDb("Erro ao conectar com o banco de dados.");
+    } catch (err) {
+      setErroDb(err?.message || JSON.stringify(err) || "Erro ao conectar com o banco de dados.");
     }
     setCarregando(false);
-  }, []);
+  }, [db, unidade]);
 
   useEffect(() => {
+    // Não inicia auth se ainda não escolheu unidade
+    if (!unidade) { setCarregando(false); return; }
+
     let ativo = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    setCarregando(true);
+
+    db.auth.getSession().then(({ data: { session } }) => {
       if (!ativo) return;
       if (session?.user) { setAuthUser(session.user); carregarDados(session.user); }
       else setCarregando(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+
+    const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
       if (!ativo) return;
       if (event === "SIGNED_IN" && session?.user) {
         setAuthUser(session.user); carregarDados(session.user);
@@ -78,7 +99,7 @@ export function AppProvider({ children }) {
       }
     });
     return () => { ativo = false; subscription.unsubscribe(); };
-  }, [carregarDados]);
+  }, [db, unidade, carregarDados]);
 
   const stats = useMemo(() => ({
     total:      itens.length,
@@ -102,11 +123,12 @@ export function AppProvider({ children }) {
   const handleSaveItem = useCallback(async (form, editandoItem) => {
     const payload = buildEquipPayload(form);
     if (editandoItem) {
-      const updated = await updateEquipamento(editandoItem.id, payload);
+      const updated = await updateEquipamento(db, editandoItem.id, payload);
       setItens((p) => p.map((a) => (a.id === editandoItem.id ? updated : a)));
       const qtdMudou = form.qtdTotal !== editandoItem.qtdTotal || form.qtdDisponivel !== editandoItem.qtdDisponivel;
       if (qtdMudou) {
         const mov = await registrarAjusteManual({
+          db,
           item: editandoItem,
           novoTotal: form.qtdTotal,
           novoDisp: form.qtdDisponivel,
@@ -115,11 +137,12 @@ export function AppProvider({ children }) {
         if (mov) setHistorico((p) => [mov, ...p]);
       }
     } else {
-      const created = await createEquipamento(payload);
+      const created = await createEquipamento(db, unidade, payload);
       setItens((p) => [...p, created]);
       const qtdFora = form.qtdTotal - form.qtdDisponivel;
       if (form.funcionario && form.funcionario !== "—" && qtdFora > 0) {
         const mov = await registrarSaidaCadastro({
+          db,
           item: created,
           qty: qtdFora,
           func: form.funcionario,
@@ -129,16 +152,18 @@ export function AppProvider({ children }) {
         if (mov) setHistorico((p) => [mov, ...p]);
       }
     }
-  }, [sessao]);
+  }, [db, sessao]);
 
   const handleDelete = useCallback(async (id) => {
-    await deleteEquipamento(id);
+    await deleteEquipamento(db, id);
     setItens((p) => p.filter((a) => a.id !== id));
-  }, []);
+  }, [db]);
 
   const handleMovimento = useCallback(async (params) => {
     const { novoEquip, novaMovimentacao } = await processarMovimento({
       ...params,
+      db,
+      unidade,
       itens,
       operador: sessao?.usuario,
     });
@@ -149,18 +174,16 @@ export function AppProvider({ children }) {
       });
     }
     if (novaMovimentacao) setHistorico((p) => [novaMovimentacao, ...p]);
-  }, [itens, sessao]);
+  }, [db, itens, sessao]);
 
   const handleDevolucao = useCallback(async ({ item, qty, obs }) => {
     try {
       const { itemDeletado, itemId, novaMovimentacao } = await processarDevolucao({
-        item, qty, obs, operador: sessao?.usuario,
+        db, item, qty, obs, operador: sessao?.usuario,
       });
       if (itemDeletado) {
-        // Item deletado: some da lista completamente
         setItens((p) => p.filter((a) => a.id !== itemId));
       } else {
-        // Fallback: FK impediu delete, apenas limpa o vínculo na UI
         setItens((p) => p.map((a) => a.id === itemId
           ? { ...a, status: "Disponível", funcionario: "—", departamento: "—", qtdDisponivel: a.qtdTotal }
           : a
@@ -171,31 +194,31 @@ export function AppProvider({ children }) {
       console.error("Erro ao devolver equipamento:", err);
       alert(`Erro ao devolver: ${err.message || err}`);
     }
-  }, [sessao]);
+  }, [db, sessao]);
 
   const handleToggleUsuario = useCallback(async (u) => {
-    const novoAtivo = await toggleUsuario(u);
+    const novoAtivo = await toggleUsuario(db, edgeFnUrl, u);
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? { ...x, ativo: novoAtivo } : x)));
-  }, []);
+  }, [db, edgeFnUrl]);
 
   const handleResetUserPassword = useCallback(async (u) => {
     if (!u.email) throw new Error("Este usuário não tem e-mail cadastrado.");
-    await resetUserPassword(u.email);
-  }, []);
+    await resetUserPassword(db, u.email);
+  }, [db]);
 
   const handleRenomearUsuario = useCallback(async (u, novoNome) => {
-    await renameUsuario(u.id, novoNome);
+    await renameUsuario(db, u.id, novoNome);
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? { ...x, nome: novoNome.trim() } : x)));
     if (u.id === sessao?.id) setSessao((p) => ({ ...p, nome: novoNome.trim() }));
-  }, [sessao]);
+  }, [db, sessao]);
 
   const handleAlterarSenha = useCallback(async (nova, confirmar) => {
     if (nova.length < 8)        throw new Error("Nova senha deve ter pelo menos 8 caracteres.");
     if (!/[A-Z]/.test(nova))    throw new Error("Nova senha deve conter ao menos uma maiúscula.");
     if (!/[0-9]/.test(nova))    throw new Error("Nova senha deve conter ao menos um número.");
     if (nova !== confirmar)     throw new Error("Senhas não coincidem.");
-    await changePassword(nova);
-  }, []);
+    await changePassword(db, nova);
+  }, [db]);
 
   const handleCriarUsuario = useCallback(async (form) => {
     const { email, usuario, nome, senha, perfil } = form;
@@ -208,52 +231,54 @@ export function AppProvider({ children }) {
     if (!/[A-Z]/.test(senha)) throw new Error("Senha deve conter ao menos uma maiúscula.");
     if (!/[0-9]/.test(senha)) throw new Error("Senha deve conter ao menos um número.");
     const avatar = perfil === "super_admin" ? "bolt" : perfil === "admin" ? "crown" : "user";
-    const novoUser = await createUsuario({ ...form, avatar });
+    const novoUser = await createUsuario(db, edgeFnUrl, unidade, { ...form, avatar });
     setUsuarios((prev) => [...prev, novoUser]);
     return novoUser;
-  }, [usuarios]);
+  }, [db, edgeFnUrl, usuarios]);
 
   const handleUploadAvatar = useCallback(async (file) => {
     if (!authUser) throw new Error("Não autenticado.");
-    const url = await uploadAvatar(authUser.id, file);
+    const url = await uploadAvatar(db, authUser.id, file);
     setSessao((p) => ({ ...p, avatar: url }));
     setUsuarios((prev) => prev.map((u) => u.authId === authUser.id ? { ...u, avatar: url } : u));
     return url;
-  }, [authUser]);
+  }, [db, authUser]);
 
   const handleAddMarca = useCallback(async (nome) => {
-    const nova = await createMarca(nome);
+    const nova = await createMarca(db, unidade, nome);
     setMarcas((p) => [...p, nova].sort((a, b) => a.nome.localeCompare(b.nome)));
     return nova;
-  }, []);
+  }, [db]);
 
   const handleDeleteMarca = useCallback(async (id) => {
-    await deleteMarca(id);
+    await deleteMarca(db, id);
     setMarcas((p) => p.filter((m) => m.id !== id));
-  }, []);
+  }, [db]);
 
   const handleToggleManutencao = useCallback(async (item, qty) => {
     if (item.status === "Manutenção") {
-      // Retornar da manutenção
       const novoStatus = item.funcionario && item.funcionario !== "—" ? "Em Uso" : "Disponível";
-      const updated = await updateEquipamento(item.id, { status: novoStatus });
+      const updated = await updateEquipamento(db, item.id, { status: novoStatus });
       setItens((p) => p.map((a) => (a.id === item.id ? updated : a)));
     } else if (qty && qty < item.qtdTotal) {
-      // Manutenção parcial: separa qty unidades em registro próprio
-      const { updatedOriginal, createdManut } = await splitEquipamentoManutencao(item, qty);
+      const { updatedOriginal, createdManut } = await splitEquipamentoManutencao(db, item, qty);
       setItens((p) => [...p.map((a) => a.id === item.id ? updatedOriginal : a), createdManut]);
     } else {
-      // Todas as unidades vão para manutenção
-      const updated = await updateEquipamento(item.id, { status: "Manutenção" });
+      const updated = await updateEquipamento(db, item.id, { status: "Manutenção" });
       setItens((p) => p.map((a) => (a.id === item.id ? updated : a)));
     }
-  }, []);
+  }, [db]);
 
-  const handleLogout = useCallback(() => supabase.auth.signOut(), []);
+  const handleLogout = useCallback(() => {
+    try { localStorage.removeItem("ti_unidade"); } catch {}
+    setUnidadeState(null);
+    db.auth.signOut();
+  }, [db]);
 
   return (
     <AppContext.Provider value={{
       dark, setDark, t,
+      unidade, setUnidade, db,
       sessao, authUser, carregando, erroDb,
       itens, historico, usuarios, marcas,
       stats, funcionarios,

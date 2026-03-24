@@ -1,10 +1,11 @@
 "use client";
 import { useState, useCallback } from "react";
-import { supabase } from "@/services/supabase";
+import { useApp } from "@/contexts/AppContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCubes, faLock, faCircleCheck, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
-export default function TelaLogin() {
+export default function TelaLogin({ erroDb }) {
+  const { db } = useApp();
   const [email, setEmail]               = useState("");
   const [senha, setSenha]               = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -16,7 +17,7 @@ export default function TelaLogin() {
   const handleLogin = useCallback(async () => {
     if (!email || !senha) { setErro("Preencha e-mail e senha."); return; }
     setLoading(true); setErro("");
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
+    const { error } = await db.auth.signInWithPassword({ email: email.trim(), password: senha });
     if (error) {
       setErro(
         error.message === "Invalid login credentials" ? "E-mail ou senha incorretos."
@@ -31,7 +32,7 @@ export default function TelaLogin() {
   const handleReset = useCallback(async () => {
     if (!email) { setErro("Digite seu e-mail primeiro."); return; }
     setLoading(true); setErro("");
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    const { error } = await db.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
     if (error) setErro(error.message);
     else setResetMsg("E-mail de redefinição enviado! Verifique sua caixa de entrada.");
     setLoading(false);
@@ -55,6 +56,11 @@ export default function TelaLogin() {
           <h2 style={{ margin: "0 0 24px", fontSize: 16, fontWeight: 600, color: "#94A3B8", textAlign: "center" }}>
             {resetMode ? "Redefinir Senha" : "Faça seu login"}
           </h2>
+          {erroDb && (
+            <div style={{ background: "#3f1a00", border: "1px solid #92400e", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#FCD34D", fontWeight: 500 }}>
+              Erro ao carregar dados: {erroDb}
+            </div>
+          )}
           {erro && (
             <div style={{ background: "#3f0a0a", border: "1px solid #7f1d1d", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 15, color: "#FCA5A5" }}><FontAwesomeIcon icon={faLock} /></span>

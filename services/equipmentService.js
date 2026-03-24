@@ -1,27 +1,27 @@
-import { supabase } from "./supabase";
 import { mapEquip } from "@/lib/mappers";
 
-export async function getAllEquipamentos() {
-  const { data, error } = await supabase
+export async function getAllEquipamentos(db, unidade) {
+  const { data, error } = await db
     .from("equipamentos")
     .select("*")
+    .eq("unidade", unidade)
     .order("nome");
   if (error) throw error;
   return data.map(mapEquip);
 }
 
-export async function createEquipamento(payload) {
-  const { data, error } = await supabase
+export async function createEquipamento(db, unidade, payload) {
+  const { data, error } = await db
     .from("equipamentos")
-    .insert([payload])
+    .insert([{ ...payload, unidade }])
     .select()
     .single();
   if (error) throw error;
   return mapEquip(data);
 }
 
-export async function updateEquipamento(id, payload) {
-  const { data, error } = await supabase
+export async function updateEquipamento(db, id, payload) {
+  const { data, error } = await db
     .from("equipamentos")
     .update(payload)
     .eq("id", id)
@@ -31,18 +31,16 @@ export async function updateEquipamento(id, payload) {
   return mapEquip(data);
 }
 
-export async function deleteEquipamento(id) {
-  const { error } = await supabase.from("equipamentos").delete().eq("id", id);
+export async function deleteEquipamento(db, id) {
+  const { error } = await db.from("equipamentos").delete().eq("id", id);
   if (error) throw error;
 }
 
 /**
  * Cria um registro separado de manutenção para qty unidades e reduz o item original.
- * Usado quando apenas parte das unidades de um item vai para manutenção.
  */
-export async function splitEquipamentoManutencao(item, qty) {
-  // 1. Reduz o item original
-  const { data: orig, error: e1 } = await supabase
+export async function splitEquipamentoManutencao(db, item, qty) {
+  const { data: orig, error: e1 } = await db
     .from("equipamentos")
     .update({ qtd_total: item.qtdTotal - qty })
     .eq("id", item.id)
@@ -50,8 +48,7 @@ export async function splitEquipamentoManutencao(item, qty) {
     .single();
   if (e1) throw e1;
 
-  // 2. Cria novo registro de manutenção
-  const { data: manut, error: e2 } = await supabase
+  const { data: manut, error: e2 } = await db
     .from("equipamentos")
     .insert([{
       nome:           item.nome,
@@ -67,6 +64,7 @@ export async function splitEquipamentoManutencao(item, qty) {
       notas:          `Em manutenção (${qty} un.)`,
       qtd_total:      qty,
       qtd_disponivel: 0,
+      unidade:        item.unidade,
     }])
     .select()
     .single();

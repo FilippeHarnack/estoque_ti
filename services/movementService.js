@@ -1,11 +1,11 @@
-import { supabase } from "./supabase";
 import { mapMov, mapEquip } from "@/lib/mappers";
 import { hoje } from "@/lib/constants";
 
-export async function getAllMovimentos() {
-  const { data, error } = await supabase
+export async function getAllMovimentos(db, unidade) {
+  const { data, error } = await db
     .from("movimentacoes")
     .select("*")
+    .eq("unidade", unidade)
     .order("criado_em", { ascending: false });
   if (error) throw error;
   return data.map(mapMov);
@@ -13,13 +13,11 @@ export async function getAllMovimentos() {
 
 /**
  * Processa uma movimentação (entrada ou saída) e atualiza o equipamento.
- * Retorna { novoEquip, novaMovimentacao } para atualizar o estado local.
  */
-export async function processarMovimento({ tipo, itemSel, itens, nomeItem, serial, patrimonio, qty, func, depto, obs, operador }) {
+export async function processarMovimento({ db, unidade, tipo, itemSel, itens, nomeItem, serial, patrimonio, qty, func, depto, obs, operador }) {
   const isEntrada = tipo === "entrada";
   const itemExistente = itens.find((a) => a.id === itemSel?.id);
 
-  // Entrada com destinatário preenchido = entrega direta do estoque (funciona como saída)
   const isEntregaDireta = isEntrada && !!func?.trim() && !!itemExistente;
   const tipoEfetivo = isEntregaDireta ? "saida" : tipo;
   const isEntradaReal = tipoEfetivo === "entrada";
@@ -44,7 +42,7 @@ export async function processarMovimento({ tipo, itemSel, itens, nomeItem, seria
         };
     qtdTotalFinal = novas.qtd_total ?? itemExistente.qtdTotal;
     qtdDispFinal = novas.qtd_disponivel ?? itemExistente.qtdDisponivel - qty;
-    const { data } = await supabase.from("equipamentos").update(novas).eq("id", itemSel.id).select().single();
+    const { data } = await db.from("equipamentos").update(novas).eq("id", itemSel.id).select().single();
     if (data) novoEquip = mapEquip(data);
   } else if (isEntradaReal && nomeItem) {
     const novoP = {
@@ -52,8 +50,9 @@ export async function processarMovimento({ tipo, itemSel, itens, nomeItem, seria
       serial: serial || "—", patrimonio: patrimonio || "—", funcionario: "—",
       departamento: "—", status: "Disponível", data_compra: hoje(),
       notas: "Cadastrado via entrada", qtd_total: qty, qtd_disponivel: qty,
+      unidade,
     };
-    const { data } = await supabase.from("equipamentos").insert([novoP]).select().single();
+    const { data } = await db.from("equipamentos").insert([novoP]).select().single();
     if (data) { equipId = data.id; qtdTotalFinal = qty; qtdDispFinal = qty; novoEquip = mapEquip(data); }
   }
 
@@ -62,20 +61,19 @@ export async function processarMovimento({ tipo, itemSel, itens, nomeItem, seria
     item_nome: nomeRegistro, serial: serialReg, patrimonio: patReg,
     categoria: catRegistro, qty, qtd_total: qtdTotalFinal, qtd_disponivel: qtdDispFinal,
     funcionario: func || null, departamento: depto || null,
-    operador, obs: obs || null,
+    operador, obs: obs || null, unidade,
   };
-  const { data: movData } = await supabase.from("movimentacoes").insert([movP]).select().single();
+  const { data: movData } = await db.from("movimentacoes").insert([movP]).select().single();
 
   return { novoEquip, novaMovimentacao: movData ? mapMov(movData) : null };
 }
 
 /**
- * Processa devolução de equipamento ao estoque (não altera qtdTotal).
+ * Processa devolução de equipamento ao estoque.
  */
-export async function processarDevolucao({ item, qty, obs, operador }) {
+export async function processarDevolucao({ db, item, qty, obs, operador }) {
   const qtyReg = qty || 1;
 
-  // 1. Registrar o movimento ANTES de deletar (equipamento_id ainda existe)
   const obsFinal = `[devolucao] ${obs || `Devolvido por ${item.funcionario || "—"}`}`;
   const movP = {
     data: hoje(),
@@ -87,21 +85,20 @@ export async function processarDevolucao({ item, qty, obs, operador }) {
     categoria: item.categoria || "—",
     qty: qtyReg,
     qtd_total: item.qtdTotal,
-    qtd_disponivel: item.qtdTotal, // após devolução tudo disponível
+    qtd_disponivel: item.qtdTotal,
     funcionario: item.funcionario || null,
     departamento: item.departamento || null,
     operador,
     obs: obsFinal,
+    unidade: item.unidade,
   };
 
-  const { data: movData, error: movErr } = await supabase.from("movimentacoes").insert([movP]).select().single();
+  const { data: movData, error: movErr } = await db.from("movimentacoes").insert([movP]).select().single();
   if (movErr) throw new Error(movErr.message || JSON.stringify(movErr));
 
-  // 2. Deletar o equipamento (item individual some da lista; volta para o "estoque virtual")
-  const { error: delErr } = await supabase.from("equipamentos").delete().eq("id", item.id);
+  const { error: delErr } = await db.from("equipamentos").delete().eq("id", item.id);
   if (delErr) {
-    // Se não conseguir deletar (FK constraint), apenas limpa o vínculo
-    const { error: updErr } = await supabase.from("equipamentos")
+    const { error: updErr } = await db.from("equipamentos")
       .update({ status: "Disponível", funcionario: "—", departamento: "—" })
       .eq("id", item.id);
     if (updErr) throw new Error(updErr.message || JSON.stringify(updErr));
@@ -113,7 +110,7 @@ export async function processarDevolucao({ item, qty, obs, operador }) {
 /**
  * Registra saída no momento do cadastro de um equipamento já atribuído.
  */
-export async function registrarSaidaCadastro({ item, qty, func, depto, operador }) {
+export async function registrarSaidaCadastro({ db, item, qty, func, depto, operador }) {
   const movP = {
     data: hoje(),
     tipo: "saida",
@@ -129,16 +126,17 @@ export async function registrarSaidaCadastro({ item, qty, func, depto, operador 
     departamento: depto || null,
     operador,
     obs: "Atribuído no cadastro do equipamento",
+    unidade: item.unidade,
   };
-  const { data, error } = await supabase.from("movimentacoes").insert([movP]).select().single();
+  const { data, error } = await db.from("movimentacoes").insert([movP]).select().single();
   if (error) throw error;
   return mapMov(data);
 }
 
 /**
- * Registra um ajuste manual de estoque feito pelo formulário de equipamento.
+ * Registra um ajuste manual de estoque.
  */
-export async function registrarAjusteManual({ item, novoTotal, novoDisp, operador }) {
+export async function registrarAjusteManual({ db, item, novoTotal, novoDisp, operador }) {
   const obsFinal = `[ajuste] Ajuste manual: total ${item.qtdTotal}→${novoTotal}, disponível ${item.qtdDisponivel}→${novoDisp}`;
   const movP = {
     data: hoje(),
@@ -155,8 +153,9 @@ export async function registrarAjusteManual({ item, novoTotal, novoDisp, operado
     departamento: item.departamento || null,
     operador,
     obs: obsFinal,
+    unidade: item.unidade,
   };
-  const { data, error } = await supabase.from("movimentacoes").insert([movP]).select().single();
+  const { data, error } = await db.from("movimentacoes").insert([movP]).select().single();
   if (error) throw new Error(error.message || JSON.stringify(error));
   return mapMov(data);
 }
