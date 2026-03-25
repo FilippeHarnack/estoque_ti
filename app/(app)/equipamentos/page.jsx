@@ -8,11 +8,12 @@ import FormItem from "@/components/forms/FormItem";
 import ModalMovimento from "@/components/forms/ModalMovimento";
 import { CAT_ICONS, CAT_FILTROS, STATUS_FILTROS, DEPARTAMENTOS, CATEGORIAS_ITENS } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding, faIndustry, faRotateLeft, faWrench } from "@fortawesome/free-solid-svg-icons";
+import { faUser, faArrowDown, faArrowUp, faFilter, faXmark, faTag, faCircleDot, faBuilding, faIndustry, faRotateLeft, faWrench, faArrowRightArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import ModalSaida from "@/components/forms/ModalSaida";
+import ModalTransferencia from "@/components/forms/ModalTransferencia";
 
 export default function EquipamentosPage() {
-  const { t, dark, itens, marcas, podeAdmin, podeEditar, handleSaveItem, handleMovimento, handleDevolucao, handleToggleManutencao, funcionarios, usuarios } = useApp();
+  const { t, dark, itens, marcas, podeAdmin, podeEditar, handleSaveItem, handleMovimento, handleDevolucao, handleTransferencia, handleToggleManutencao, funcionarios, usuarios } = useApp();
   const searchParams = useSearchParams();
 
   const [busca, setBusca]       = useState("");
@@ -33,6 +34,7 @@ export default function EquipamentosPage() {
   const [manutModal, setManutModal] = useState(null); // { item }
   const [manutQty, setManutQty] = useState(1);
   const [saidaModal, setSaidaModal] = useState(false);
+  const [transferenciaModal, setTransferenciaModal] = useState(false);
 
   const sel = { padding: "6px 10px", borderRadius: 8, border: `1px solid ${t.borderMed}`, fontSize: 13, color: t.text, background: t.inputBg, cursor: "pointer", fontFamily: "inherit", outline: "none" };
 
@@ -50,9 +52,7 @@ export default function EquipamentosPage() {
 
   return (
     <>
-      <Header title="Equipamentos" search={busca} onSearch={setBusca}
-        actions={podeEditar && <Btn onClick={() => setAdicionando(true)} t={t} variant="primary">+ Adicionar Item</Btn>}
-      />
+      <Header title="Equipamentos" search={busca} onSearch={setBusca} />
       <main style={{ flex: 1, overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -60,17 +60,18 @@ export default function EquipamentosPage() {
           {(() => {
             const cats = catOpts.slice(1).map((cat) => {
               const lista = itens.filter((i) => i.categoria === cat);
-              const total = lista.reduce((s, i) => s + i.qtdTotal, 0);
-              const disp  = lista.reduce((s, i) => s + i.qtdDisponivel, 0);
-              const pct   = total ? Math.round((disp / total) * 100) : 0;
-              return { cat, total, disp, pct };
+              const total  = lista.reduce((s, i) => s + i.qtdTotal, 0);
+              const disp   = lista.reduce((s, i) => s + i.qtdDisponivel, 0);
+              const emUso  = total - disp;
+              const pct    = total ? Math.round((disp / total) * 100) : 0;
+              return { cat, total, disp, emUso, pct };
             });
             if (!cats.length) return null;
             return (
               <div style={{ background: t.surface, borderRadius: 14, border: `1px solid ${t.border}`, padding: "14px 16px" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>Estoque por Categoria</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
-                  {cats.map(({ cat, total, disp, pct }) => {
+                  {cats.map(({ cat, total, disp, emUso, pct }) => {
                     const cor = pct > 50 ? t.success : pct > 20 ? t.gold : t.danger;
                     const ativo = catFil === cat;
                     return (
@@ -83,7 +84,9 @@ export default function EquipamentosPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, color: ativo ? t.accent : t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat}</span>
                         </div>
                         <div style={{ fontSize: 22, fontWeight: 800, color: cor, lineHeight: 1 }}>{disp}</div>
-                        <div style={{ fontSize: 11, color: t.textFaint, marginTop: 2, marginBottom: 8 }}>de {total} disponíveis</div>
+                        <div style={{ fontSize: 11, color: t.textFaint, marginTop: 2, marginBottom: 8 }}>
+                          {emUso > 0 ? `${emUso} em uso` : "todos disponíveis"}
+                        </div>
                         <div style={{ height: 4, background: t.border, borderRadius: 10, overflow: "hidden" }}>
                           <div style={{ width: `${pct}%`, height: "100%", background: cor, borderRadius: 10 }} />
                         </div>
@@ -143,12 +146,17 @@ export default function EquipamentosPage() {
               {podeAdmin && (
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                   <button
+                    onClick={() => setTransferenciaModal(true)}
+                    style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#F59E0B", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                    <FontAwesomeIcon icon={faArrowRightArrowLeft} /> Movimentar
+                  </button>
+                  <button
                     onClick={() => setSaidaModal(true)}
                     style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#EF4444", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                     <FontAwesomeIcon icon={faArrowUp} /> Saída
                   </button>
                   <button
-                    onClick={() => setMovModal({ tipo: "entrada", item: null })}
+                    onClick={() => setAdicionando(true)}
                     style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#10B981", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                     <FontAwesomeIcon icon={faArrowDown} /> Nova Entrada
                   </button>
@@ -294,13 +302,30 @@ export default function EquipamentosPage() {
           onClose={() => setMovModal(null)} t={t} />
       )}
 
+      {transferenciaModal && (
+        <ModalTransferencia
+          itens={itens}
+          funcionarios={funcionarios}
+          funcionarioInicial={funcFil !== "Todos" ? funcFil : ""}
+          onTransferir={async (params) => {
+            await handleTransferencia(params);
+          }}
+          onClose={() => setTransferenciaModal(false)}
+          t={t}
+        />
+      )}
+
       {saidaModal && (
         <ModalSaida
           itens={itens}
           funcionarios={funcionarios}
+          funcionarioInicial={funcFil !== "Todos" ? funcFil : ""}
           onSave={async (params) => {
             setSaidaModal(false);
             await handleMovimento({ tipo: "saida", ...params });
+          }}
+          onDevolucao={async (params) => {
+            await handleDevolucao(params);
           }}
           onClose={() => setSaidaModal(false)}
           t={t}

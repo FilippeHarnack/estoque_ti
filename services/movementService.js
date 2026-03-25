@@ -42,7 +42,8 @@ export async function processarMovimento({ db, unidade, tipo, itemSel, itens, no
         };
     qtdTotalFinal = novas.qtd_total ?? itemExistente.qtdTotal;
     qtdDispFinal = novas.qtd_disponivel ?? itemExistente.qtdDisponivel - qty;
-    const { data } = await db.from("equipamentos").update(novas).eq("id", itemSel.id).select().single();
+    const { data, error: updErr } = await db.from("equipamentos").update(novas).eq("id", itemSel.id).select().single();
+    if (updErr) throw new Error(updErr.message || JSON.stringify(updErr));
     if (data) novoEquip = mapEquip(data);
   } else if (isEntradaReal && nomeItem) {
     const novoP = {
@@ -131,6 +132,29 @@ export async function registrarSaidaCadastro({ db, item, qty, func, depto, opera
   const { data, error } = await db.from("movimentacoes").insert([movP]).select().single();
   if (error) throw error;
   return mapMov(data);
+}
+
+/**
+ * Transfere um equipamento de um funcionário para outro.
+ */
+export async function processarTransferencia({ db, item, novoFuncionario, novoDepto, obs, operador }) {
+  const novas = { funcionario: novoFuncionario, departamento: novoDepto, status: "Em Uso" };
+  const { data: equip, error: updErr } = await db.from("equipamentos").update(novas).eq("id", item.id).select().single();
+  if (updErr) throw new Error(updErr.message || JSON.stringify(updErr));
+
+  const obsFinal = `[transferencia] ${item.funcionario} → ${novoFuncionario}${obs ? ` · ${obs}` : ""}`;
+  const movP = {
+    data: hoje(), tipo: "saida", equipamento_id: item.id,
+    item_nome: item.nome, serial: item.serial || "—", patrimonio: item.patrimonio || "—",
+    categoria: item.categoria || "—", qty: 1,
+    qtd_total: item.qtdTotal, qtd_disponivel: item.qtdDisponivel,
+    funcionario: novoFuncionario, departamento: novoDepto,
+    operador, obs: obsFinal, unidade: item.unidade,
+  };
+  const { data: movData, error: movErr } = await db.from("movimentacoes").insert([movP]).select().single();
+  if (movErr) throw new Error(movErr.message || JSON.stringify(movErr));
+
+  return { novoEquip: equip ? mapEquip(equip) : null, novaMovimentacao: movData ? mapMov(movData) : null };
 }
 
 /**

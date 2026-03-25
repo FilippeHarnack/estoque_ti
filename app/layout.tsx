@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TI Inventário",
+  title: "Estoque",
   description: "Sistema de Gestão de Equipamentos de TI",
 };
 

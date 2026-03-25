@@ -1,9 +1,9 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { getDb, getEdgeFnUrl } from "@/services/supabase";
+import { supabase, getDb, getEdgeFnUrl } from "@/services/supabase";
 import { buildTheme } from "@/lib/theme";
 import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload, splitEquipamentoManutencao } from "@/services/equipmentService";
-import { getAllMovimentos, processarMovimento, processarDevolucao, registrarAjusteManual, registrarSaidaCadastro } from "@/services/movementService";
+import { getAllMovimentos, processarMovimento, processarDevolucao, processarTransferencia, registrarAjusteManual, registrarSaidaCadastro } from "@/services/movementService";
 import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
 import { getAllMarcas, createMarca, deleteMarca } from "@/services/marcasService";
 
@@ -21,35 +21,50 @@ export function AppProvider({ children }) {
   });
   const setUnidade = useCallback((val) => {
     try { localStorage.setItem("ti_unidade", val); } catch {}
+    if (unidade && val !== unidade) {
+      setTrocandoFilial(true);
+      setUnidadeOrigem(unidade);
+      setUnidadeAlvo(val);
+    }
+    setCarregando(true);
     setUnidadeState(val);
-    // Limpa sessão ao trocar de unidade para forçar novo login
     setSessao(null);
-    setAuthUser(null);
     setItens([]); setHistorico([]); setUsuarios([]);
-  }, []);
+  }, [unidade]);
 
   // Cliente Supabase correto para a unidade atual
   const db = useMemo(() => getDb(unidade), [unidade]);
   const edgeFnUrl = useMemo(() => getEdgeFnUrl(unidade), [unidade]);
 
-  const [sessao, setSessao]       = useState(null);
-  const [authUser, setAuthUser]   = useState(null);
-  const [carregando, setCarregando] = useState(true);
-  const [erroDb, setErroDb]       = useState("");
+  const [sessao, setSessao]           = useState(null);
+  const [authUser, setAuthUser]       = useState(null);
+  const [authNome, setAuthNome]       = useState("");
+  const [carregando, setCarregando]   = useState(true);
+  const [erroDb, setErroDb]           = useState("");
+  const [trocandoFilial, setTrocandoFilial] = useState(false);
+  const [unidadeAlvo, setUnidadeAlvo]       = useState(null);
+  const [unidadeOrigem, setUnidadeOrigem]   = useState(null);
 
   const [itens, setItens]         = useState([]);
   const [historico, setHistorico] = useState([]);
   const [usuarios, setUsuarios]   = useState([]);
   const [marcas, setMarcas]       = useState([]);
 
+  const sessaoFallback = useCallback((authUserObj) => ({
+    id: null, authId: authUserObj.id, usuario: authUserObj.email,
+    nome: authUserObj.email, perfil: "super_admin", avatar: "bolt",
+    ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString(),
+  }), []);
+
   const carregarDados = useCallback(async (authUserObj) => {
+    const animStart = Date.now();
     setCarregando(true);
     setErroDb("");
     try {
       const [equip, movs, usrs, mrcs] = await Promise.all([
-        getAllEquipamentos(db, unidade),
-        getAllMovimentos(db, unidade),
-        getAllUsuarios(db, unidade),
+        getAllEquipamentos(db, unidade).catch(() => []),
+        getAllMovimentos(db, unidade).catch(() => []),
+        getAllUsuarios(db).catch(() => []),
         getAllMarcas(db, unidade).catch(() => []),
       ]);
       setItens(equip);
@@ -59,38 +74,62 @@ export function AppProvider({ children }) {
 
       const perfil = usrs.find((u) => u.authId === authUserObj.id);
       if (perfil) {
-        const agora = await updateLastLogin(db, authUserObj.id);
+        const agora = await updateLastLogin(db, authUserObj.id).catch(() => new Date().toISOString());
         setSessao({ ...perfil, email: perfil.email || authUserObj.email, ultimoLogin: agora });
       } else {
-        setSessao({
-          id: null, authId: authUserObj.id, usuario: authUserObj.email,
-          nome: authUserObj.email, perfil: "super_admin", avatar: "bolt",
-          ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString(),
-        });
+        setSessao(sessaoFallback(authUserObj));
       }
     } catch (err) {
       setErroDb(err?.message || JSON.stringify(err) || "Erro ao conectar com o banco de dados.");
+      setSessao(sessaoFallback(authUserObj));
+      setCarregando(false);
+      setTrocandoFilial(false);
+      return;
     }
-    setCarregando(false);
+    // Garante tempo mínimo de 3.2s para a animação de pouso/voo completar
+    const elapsed = Date.now() - animStart;
+    const delay = Math.max(0, 3200 - elapsed);
+    setTimeout(() => {
+      setCarregando(false);
+      setTrocandoFilial(false);
+    }, delay);
   }, [db, unidade]);
 
   useEffect(() => {
-    // Não inicia auth se ainda não escolheu unidade
-    if (!unidade) { setCarregando(false); return; }
-
     let ativo = true;
     setCarregando(true);
 
-    db.auth.getSession().then(({ data: { session } }) => {
+    const buscarNome = async (uid) => {
+      try {
+        const { data } = await supabase
+          .from("usuarios_app")
+          .select("nome")
+          .eq("auth_id", uid)
+          .maybeSingle();
+        if (data?.nome) setAuthNome(data.nome.split(" ")[0]);
+      } catch {}
+    };
+
+    // Sempre usa o cliente Florianópolis para autenticação (independente da unidade)
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!ativo) return;
-      if (session?.user) { setAuthUser(session.user); carregarDados(session.user); }
-      else setCarregando(false);
+      if (session?.user) {
+        setAuthUser(session.user);
+        buscarNome(session.user.id);
+        if (unidade) carregarDados(session.user);
+        else setCarregando(false); // Logado mas sem unidade → mostra TelaUnidade
+      } else {
+        setCarregando(false);
+      }
     });
 
-    const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!ativo) return;
       if (event === "SIGNED_IN" && session?.user) {
-        setAuthUser(session.user); carregarDados(session.user);
+        setAuthUser(session.user);
+        buscarNome(session.user.id);
+        if (unidade) carregarDados(session.user);
+        else setCarregando(false); // Logado mas sem unidade → mostra TelaUnidade
       }
       if (event === "SIGNED_OUT") {
         setAuthUser(null); setSessao(null);
@@ -99,7 +138,7 @@ export function AppProvider({ children }) {
       }
     });
     return () => { ativo = false; subscription.unsubscribe(); };
-  }, [db, unidade, carregarDados]);
+  }, [unidade, carregarDados]);
 
   const stats = useMemo(() => ({
     total:      itens.length,
@@ -112,9 +151,13 @@ export function AppProvider({ children }) {
   }), [itens]);
 
   const funcionarios = useMemo(() => {
-    const lista = [...new Set(itens.map((i) => i.funcionario).filter((f) => f && f !== "—"))].sort();
+    const lista = [...new Set(
+      itens.filter((i) => !unidade || i.unidade === unidade)
+           .map((i) => i.funcionario)
+           .filter((f) => f && f !== "—")
+    )].sort();
     return ["Todos", ...lista];
-  }, [itens]);
+  }, [itens, unidade]);
 
   const podeSuperAdmin = sessao?.perfil === "super_admin";
   const podeAdmin      = sessao?.perfil === "admin" || sessao?.perfil === "super_admin";
@@ -196,6 +239,14 @@ export function AppProvider({ children }) {
     }
   }, [db, sessao]);
 
+  const handleTransferencia = useCallback(async ({ item, novoFuncionario, novoDepto, obs }) => {
+    const { novoEquip, novaMovimentacao } = await processarTransferencia({
+      db, item, novoFuncionario, novoDepto, obs, operador: sessao?.usuario,
+    });
+    if (novoEquip) setItens((p) => p.map((a) => (a.id === novoEquip.id ? novoEquip : a)));
+    if (novaMovimentacao) setHistorico((p) => [novaMovimentacao, ...p]);
+  }, [db, sessao]);
+
   const handleToggleUsuario = useCallback(async (u) => {
     const novoAtivo = await toggleUsuario(db, edgeFnUrl, u);
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? { ...x, ativo: novoAtivo } : x)));
@@ -231,7 +282,7 @@ export function AppProvider({ children }) {
     if (!/[A-Z]/.test(senha)) throw new Error("Senha deve conter ao menos uma maiúscula.");
     if (!/[0-9]/.test(senha)) throw new Error("Senha deve conter ao menos um número.");
     const avatar = perfil === "super_admin" ? "bolt" : perfil === "admin" ? "crown" : "user";
-    const novoUser = await createUsuario(db, edgeFnUrl, unidade, { ...form, avatar });
+    const novoUser = await createUsuario(db, edgeFnUrl, { ...form, avatar });
     setUsuarios((prev) => [...prev, novoUser]);
     return novoUser;
   }, [db, edgeFnUrl, usuarios]);
@@ -248,7 +299,7 @@ export function AppProvider({ children }) {
     const nova = await createMarca(db, unidade, nome);
     setMarcas((p) => [...p, nova].sort((a, b) => a.nome.localeCompare(b.nome)));
     return nova;
-  }, [db]);
+  }, [db, unidade]);
 
   const handleDeleteMarca = useCallback(async (id) => {
     await deleteMarca(db, id);
@@ -272,18 +323,19 @@ export function AppProvider({ children }) {
   const handleLogout = useCallback(() => {
     try { localStorage.removeItem("ti_unidade"); } catch {}
     setUnidadeState(null);
-    db.auth.signOut();
-  }, [db]);
+    supabase.auth.signOut(); // Sempre faz signOut pelo cliente de auth principal
+  }, []);
 
   return (
     <AppContext.Provider value={{
       dark, setDark, t,
       unidade, setUnidade, db,
-      sessao, authUser, carregando, erroDb,
+      sessao, authUser, authNome, carregando, erroDb,
+      trocandoFilial, unidadeAlvo, unidadeOrigem,
       itens, historico, usuarios, marcas,
       stats, funcionarios,
       podeSuperAdmin, podeAdmin, podeEditar,
-      handleSaveItem, handleDelete, handleMovimento, handleDevolucao,
+      handleSaveItem, handleDelete, handleMovimento, handleDevolucao, handleTransferencia,
       handleToggleUsuario, handleResetUserPassword,
       handleRenomearUsuario, handleAlterarSenha,
       handleCriarUsuario, handleUploadAvatar,

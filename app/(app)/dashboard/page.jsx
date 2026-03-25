@@ -35,7 +35,7 @@ function LineChart({ data, t }) {
     return `M ${x0},${toY(data[0]?.[key] ?? 0).toFixed(1)} L ${pts} L ${xN},${yBase} L ${x0},${yBase} Z`;
   };
 
-  const yTicks = [0, Math.round(maxV / 2), maxV];
+  const yTicks = [...new Set([0, Math.round(maxV / 2), maxV])];
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
@@ -150,7 +150,7 @@ function StockBar({ pct, t }) {
 
 /* ── Main Dashboard ─────────────────────────────────────────────── */
 export default function DashboardPage() {
-  const { t, dark, sessao, stats, itens, historico, usuarios } = useApp();
+  const { t, dark, sessao, authNome, stats, itens, historico, usuarios } = useApp();
   const router = useRouter();
 
   /* Monthly movement data — last 6 months */
@@ -206,7 +206,15 @@ export default function DashboardPage() {
 
           {/* Greeting */}
           <div style={{ background: `linear-gradient(135deg,${t.accent},#8B5CF6)`, borderRadius: 16, padding: "20px 24px", color: "#fff" }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>Olá, {sessao?.nome?.split(" ")[0]}!</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>Olá, {(() => {
+              const limpar = (s) => {
+                if (!s) return null;
+                if (!s.includes(" ") && s.includes(".")) return s.split(".")[0].replace(/^./, c => c.toUpperCase());
+                return s;
+              };
+              const raw = sessao?.nome?.includes("@") ? sessao.nome.split("@")[0] : sessao?.nome?.split(" ")[0];
+              return limpar(authNome) || limpar(raw) || "você";
+            })()}!</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
               Perfil: <strong style={{ textTransform: "capitalize" }}>{sessao?.perfil}</strong>
               {" · "}

@@ -5,7 +5,7 @@ import Header from "@/components/layout/Header";
 import { StatusBadge } from "@/components/ui";
 import { CAT_ICONS, hoje } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBolt, faCrown, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
+import { faBolt, faCrown, faRotateLeft, faArrowRightArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 const PERFIL_BADGE = {
   super_admin: { label: "Super Admin", icon: faBolt,  bg: "#1e1b4b", cor: "#c4b5fd" },
@@ -79,17 +79,31 @@ export default function HistoricoPage() {
                     return (
                       <div key={h.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${t.border}` }}>
 
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : t.danger, flexShrink: 0, marginTop: 5 }} />
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, flexShrink: 0, marginTop: 5 }} />
 
                         <span style={{ fontSize: 12, color: t.textFaint, width: 88, flexShrink: 0, paddingTop: 2 }}>{h.data}</span>
 
-                        <span style={{ fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
-                          {h.tipo === "entrada" ? "+" : h.tipo === "ajuste" ? "~" : h.tipo === "devolucao" ? "↩" : "-"}{h.qty} un.
+                        <span style={{ fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
+                          {h.tipo === "entrada" ? "+" : h.tipo === "ajuste" ? "~" : h.tipo === "devolucao" ? "↩" : h.tipo === "transferencia" ? "⇄" : "-"}{h.qty} un.
                         </span>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: t.text, fontWeight: 500, marginBottom: 4 }}>
-                            {h.tipo === "ajuste" ? (
+                            {h.tipo === "transferencia" ? (() => {
+                              const partes = h.obs?.split(" → ") || [];
+                              const de  = partes[0]?.trim() || "—";
+                              const para = partes[1]?.trim() || h.funcionario || "—";
+                              return (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  <FontAwesomeIcon icon={faArrowRightArrowLeft} style={{ color: "#F97316", fontSize: 12 }} />
+                                  <span style={{ color: t.textMuted }}>Transferido de</span>
+                                  <strong style={{ color: t.danger }}>{de}</strong>
+                                  <span style={{ color: "#F97316" }}>→</span>
+                                  <strong style={{ color: t.success }}>{para}</strong>
+                                  {temDepto && <span style={{ color: t.textFaint, fontWeight: 400 }}>· {h.depto}</span>}
+                                </span>
+                              );
+                            })() : h.tipo === "ajuste" ? (
                               <span style={{ color: "#F59E0B" }}>Ajuste manual de estoque</span>
                             ) : h.tipo === "devolucao" ? (
                               temFunc
@@ -114,7 +128,7 @@ export default function HistoricoPage() {
                               {badge.icon && <FontAwesomeIcon icon={badge.icon} />}
                               {badge.label}
                             </span>
-                            {h.obs && <span style={{ fontSize: 11, color: t.textFaint, fontStyle: "italic" }}>· {h.obs}</span>}
+                            {h.obs && h.tipo !== "transferencia" && <span style={{ fontSize: 11, color: t.textFaint, fontStyle: "italic" }}>· {h.obs}</span>}
                           </div>
                         </div>
 

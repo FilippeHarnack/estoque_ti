@@ -49,7 +49,7 @@ export default function TelaLogin({ erroDb }) {
           <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg,#6366F1,#8B5CF6)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", boxShadow: "0 8px 32px #6366F155" }}>
             <FontAwesomeIcon icon={faCubes} />
           </div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#F1F5F9", letterSpacing: -0.5 }}>TI Inventário</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#F1F5F9", letterSpacing: -0.5 }}>Estoque</h1>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748B" }}>Sistema de Gestão de Equipamentos</p>
         </div>
         <div style={{ background: "#1E293B", borderRadius: 20, padding: 32, border: "1px solid #334155", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>

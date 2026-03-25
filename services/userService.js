@@ -1,10 +1,9 @@
 import { mapUsuario } from "@/lib/mappers";
 
-export async function getAllUsuarios(db, unidade) {
+export async function getAllUsuarios(db) {
   const { data, error } = await db
     .from("usuarios_app")
     .select("id,auth_id,usuario,nome,perfil,avatar,ativo,ultimo_login,email")
-    .eq("unidade", unidade)
     .order("id");
   if (error) throw error;
   return data.map(mapUsuario);
@@ -23,13 +22,18 @@ export async function renameUsuario(db, id, nome) {
 
 export async function toggleUsuario(db, edgeFnUrl, u) {
   const novoAtivo = !u.ativo;
-  const { data: { session } } = await db.auth.getSession();
   if (u.authId) {
-    await fetch(edgeFnUrl, {
+    const { data: { session }, error: sessErr } = await db.auth.getSession();
+    if (sessErr || !session) throw new Error("Sessão inválida. Faça login novamente.");
+    const res = await fetch(edgeFnUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
       body: JSON.stringify({ action: novoAtivo ? "enable" : "disable", auth_id: u.authId }),
     });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || `Erro ao ${novoAtivo ? "ativar" : "desativar"} usuário no Auth (status ${res.status}).`);
+    }
   }
   const { error } = await db.from("usuarios_app").update({ ativo: novoAtivo }).eq("id", u.id);
   if (error) throw error;
@@ -43,12 +47,12 @@ export async function resetUserPassword(db, email) {
   if (error) throw error;
 }
 
-export async function createUsuario(db, edgeFnUrl, unidade, { email, usuario, nome, senha, perfil, avatar }) {
+export async function createUsuario(db, edgeFnUrl, { email, usuario, nome, senha, perfil, avatar }) {
   const { data: { session } } = await db.auth.getSession();
   const res = await fetch(edgeFnUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-    body: JSON.stringify({ action: "create", email, password: senha, usuario, nome, perfil, avatar, unidade }),
+    body: JSON.stringify({ action: "create", email, password: senha, usuario, nome, perfil, avatar }),
   });
   const json = await res.json();
   if (!res.ok || json.error) throw new Error(json.error || "Erro status " + res.status);

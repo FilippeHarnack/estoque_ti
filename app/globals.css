@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Filial flight transition ───────────────────────────────────── */
+@keyframes filial-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes filial-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes star-twinkle {
+  from { opacity: 0.15; transform: scale(1); }
+  to   { opacity: 0.9;  transform: scale(1.4); }
+}
+@keyframes city-from-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes city-from-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes flight-status-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes filial-dot-bounce {
+  0%, 80%, 100% { transform: scale(0);   opacity: 0.2; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+@keyframes city-glow-pulse {
+  0%, 100% { box-shadow: 0 0 16px var(--glow-color, #6366F1); }
+  50%      { box-shadow: 0 0 36px var(--glow-color, #6366F1), 0 0 60px var(--glow-color, #6366F1); }
+}
+
+.filial-overlay-entering { animation: filial-overlay-in  0.3s ease forwards; }
+.filial-overlay-exiting  { animation: filial-overlay-out 0.45s ease forwards; }
+.city-card-origin { animation: city-from-left  0.55s cubic-bezier(0.22,1,0.36,1) 0.1s  both; }
+.city-card-dest   { animation: city-from-right 0.55s cubic-bezier(0.22,1,0.36,1) 0.15s both; }
+.flight-status-in { animation: flight-status-rise 0.5s cubic-bezier(0.22,1,0.36,1) 0.7s both; }

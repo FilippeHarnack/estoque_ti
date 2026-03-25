@@ -77,7 +77,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               <FontAwesomeIcon icon={faCubes} />
             </div>
             <span style={{ fontWeight: 700, fontSize: 14, color: t.text, whiteSpace: "nowrap", flex: 1 }}>
-              TI Inventário
+              Estoque
             </span>
             <button
               onClick={onToggle}

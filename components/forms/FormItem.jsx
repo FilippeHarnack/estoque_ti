@@ -3,7 +3,7 @@ import { CATEGORIAS_ITENS, DEPARTAMENTOS, STATUS_LIST } from "@/lib/constants";
 import { InputField, SelectField, Btn } from "@/components/ui";
 import { hoje } from "@/lib/constants";
 import { useApp } from "@/contexts/AppContext";
-import { faPlus, faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faCheck, faXmark, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 function MarcaField({ value, onChange, marcas, onAddMarca, t }) {
@@ -74,11 +74,62 @@ function MarcaField({ value, onChange, marcas, onAddMarca, t }) {
   );
 }
 
-const MARCAS_LISTA = ["Acer", "Apple", "Asus", "BRX", "Edifier", "Feltron", "Generic", "HP", "Intelbras", "Lenovo", "LG", "Logitech", "Microsoft", "Motorola", "My Max", "Samsung"];
+function FuncionarioField({ value, onChange, funcionarios, t }) {
+  const lista = funcionarios.filter((f) => f !== "Todos" && f !== "—");
+  const [digitando, setDigitando] = useState(!lista.includes(value) && value !== "");
+
+  const iniciarNovo = () => {
+    onChange("");
+    setDigitando(true);
+  };
+
+  const cancelar = () => {
+    setDigitando(false);
+    onChange("");
+  };
+
+  return (
+    <div style={{ flex: 1, minWidth: "45%", display: "flex", flexDirection: "column", gap: 5 }}>
+      <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <FontAwesomeIcon icon={faUser} style={{ marginRight: 5 }} />Funcionário
+      </label>
+      {digitando ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Nome do funcionário..."
+            style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: `1px solid ${t.accent}`, background: t.inputBg, color: t.text, fontSize: 13, fontFamily: "inherit", outline: "none" }}
+          />
+          <button onClick={cancelar} title="Cancelar"
+            style={{ padding: "0 10px", borderRadius: 9, border: `1px solid ${t.borderMed}`, background: "transparent", color: t.textMuted, cursor: "pointer", fontSize: 13 }}>
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 6 }}>
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: `1px solid ${t.borderMed}`, background: t.inputBg, color: t.text, fontSize: 13, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
+          >
+            <option value="" style={{ color: t.textMuted, background: t.surface }}>Sem funcionário</option>
+            {lista.map((f) => <option key={f} value={f} style={{ color: t.text, background: t.surface }}>{f}</option>)}
+          </select>
+          <button onClick={iniciarNovo} title="Novo funcionário"
+            style={{ padding: "0 12px", borderRadius: 9, border: `1px solid ${t.borderMed}`, background: t.surface, color: t.accent, cursor: "pointer", fontSize: 13, flexShrink: 0 }}>
+            <FontAwesomeIcon icon={faPlus} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function FormItem({ item, onSave, onClose, t }) {
-  const { handleAddMarca } = useApp();
-  const marcas = MARCAS_LISTA.map((nome, i) => ({ id: i, nome }));
+  const { handleAddMarca, funcionarios, marcas } = useApp();
 
   const [f, setF] = useState({
     nome:          item?.nome         || "",
@@ -112,7 +163,7 @@ export default function FormItem({ item, onSave, onClose, t }) {
         <InputField label="Modelo"             value={f.modelo}       onChange={(e) => s("modelo", e.target.value)}         t={t} half />
         <InputField label="Nº de Série"        value={f.serial}       onChange={(e) => s("serial", e.target.value)}        t={t} half mono />
         <InputField label="Nº de Patrimônio"   value={f.patrimonio}   onChange={(e) => s("patrimonio", e.target.value)}    t={t} half mono />
-        <InputField label="Funcionário"        value={f.funcionario}  onChange={(e) => s("funcionario", e.target.value)}   t={t} half />
+        <FuncionarioField value={f.funcionario} onChange={(v) => s("funcionario", v)} funcionarios={funcionarios} t={t} />
         <SelectField label="Departamento"      value={f.departamento} onChange={(e) => s("departamento", e.target.value)}  opts={DEPARTAMENTOS.slice(1)} t={t} half />
         <SelectField label="Status"            value={f.status}       onChange={(e) => s("status", e.target.value)}        opts={STATUS_LIST} t={t} half />
         <InputField label="Data de Compra"     value={f.dataCompra}   onChange={(e) => s("dataCompra", e.target.value)}    type="date" t={t} half />
@@ -120,7 +171,10 @@ export default function FormItem({ item, onSave, onClose, t }) {
       <div style={{ background: t.bg, borderRadius: 12, padding: "14px 16px", border: `1px solid ${t.border}` }}>
         <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>Controle de Estoque</p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {[["qtdTotal", "Qtd. Total"], ["qtdDisponivel", "Qtd. Disponível"]].map(([key, lbl]) => (
+          {(item
+            ? [["qtdTotal", "Qtd. Total"], ["qtdDisponivel", "Qtd. Disponível"]]
+            : [["qtdTotal", "Quantidade"]]
+          ).map(([key, lbl]) => (
             <div key={key} style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 120 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>{lbl}</label>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -130,6 +184,13 @@ export default function FormItem({ item, onSave, onClose, t }) {
               </div>
             </div>
           ))}
+          {!item && (
+            <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 4 }}>
+              <span style={{ fontSize: 12, color: t.textFaint, fontStyle: "italic" }}>
+                Disponível será igual à quantidade cadastrada
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -140,7 +201,7 @@ export default function FormItem({ item, onSave, onClose, t }) {
 
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
         <Btn onClick={onClose} variant="ghost" t={t}>Cancelar</Btn>
-        <Btn onClick={() => onSave(f)} variant="primary" t={t} disabled={!f.nome.trim()}>Salvar Item</Btn>
+        <Btn onClick={() => onSave(item ? f : { ...f, qtdDisponivel: f.qtdTotal })} variant="primary" t={t} disabled={!f.nome.trim()}>Salvar Item</Btn>
       </div>
     </div>
   );

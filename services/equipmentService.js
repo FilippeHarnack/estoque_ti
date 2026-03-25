@@ -68,7 +68,11 @@ export async function splitEquipamentoManutencao(db, item, qty) {
     }])
     .select()
     .single();
-  if (e2) throw e2;
+  if (e2) {
+    // Rollback: restaura qtd_total original antes de lançar o erro
+    await db.from("equipamentos").update({ qtd_total: item.qtdTotal }).eq("id", item.id);
+    throw e2;
+  }
 
   return { updatedOriginal: mapEquip(orig), createdManut: mapEquip(manut) };
 }

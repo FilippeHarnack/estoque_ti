@@ -1,13 +1,11 @@
 "use client";
-import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import Header from "@/components/layout/Header";
-import { Btn, StatCard, Table } from "@/components/ui";
-import ModalMovimento from "@/components/forms/ModalMovimento";
+import { StatCard, Table } from "@/components/ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt, faCrown, faArrowDown, faArrowUp, faLock,
-  faClipboardList, faRotateLeft,
+  faClipboardList, faRotateLeft, faArrowRightArrowLeft,
 } from "@fortawesome/free-solid-svg-icons";
 
 const PERFIL_BADGE = {
@@ -18,24 +16,14 @@ const PERFIL_BADGE = {
 };
 
 export default function MovimentacoesPage() {
-  const { t, itens, historico, usuarios, podeAdmin, handleMovimento } = useApp();
+  const { t, historico, usuarios, podeAdmin } = useApp();
 
   const getOperador = (username) => usuarios.find((u) => u.usuario === username) || null;
-  const [movModal, setMovModal] = useState(null);
 
   const totalEntradas = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
   const totalSaidas   = historico.filter((h) => h.tipo === "saida").reduce((s, h)   => s + h.qty, 0);
 
-  const headerActions = podeAdmin && (
-    <div style={{ display: "flex", gap: 8 }}>
-      <Btn t={t} variant="success" onClick={() => setMovModal({ tipo: "entrada", item: itens[0] || null })}>
-        <FontAwesomeIcon icon={faArrowDown} style={{ marginRight: 5 }} /> Nova Entrada
-      </Btn>
-      <Btn t={t} variant="danger" onClick={() => setMovModal({ tipo: "saida", item: itens.find((i) => i.qtdDisponivel > 0) || itens[0] || null })}>
-        <FontAwesomeIcon icon={faArrowUp} style={{ marginRight: 5 }} /> Nova Saída
-      </Btn>
-    </div>
-  );
+  const headerActions = null;
 
   return (
     <>
@@ -67,17 +55,17 @@ export default function MovimentacoesPage() {
               { label: "Data",       render: (r) => <span style={{ color: t.textFaint, fontSize: 12, whiteSpace: "nowrap" }}>{r.data}</span> },
               { label: "Tipo",       render: (r) => (
                 <span style={{ fontWeight: 700, fontSize: 12,
-                  color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : t.danger,
-                  background: r.tipo === "entrada" ? t.successBg : r.tipo === "ajuste" ? "#F59E0B22" : r.tipo === "devolucao" ? "#60A5FA22" : t.dangerBg,
+                  color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : r.tipo === "transferencia" ? "#F97316" : t.danger,
+                  background: r.tipo === "entrada" ? t.successBg : r.tipo === "ajuste" ? "#F59E0B22" : r.tipo === "devolucao" ? "#60A5FA22" : r.tipo === "transferencia" ? "#F9731622" : t.dangerBg,
                   padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : r.tipo === "ajuste" ? faClipboardList : r.tipo === "devolucao" ? faRotateLeft : faArrowUp} />
-                  {r.tipo === "entrada" ? "Entrada" : r.tipo === "ajuste" ? "Ajuste" : r.tipo === "devolucao" ? "Devolução" : "Saída"}
+                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : r.tipo === "ajuste" ? faClipboardList : r.tipo === "devolucao" ? faRotateLeft : r.tipo === "transferencia" ? faArrowRightArrowLeft : faArrowUp} />
+                  {r.tipo === "entrada" ? "Entrada" : r.tipo === "ajuste" ? "Ajuste" : r.tipo === "devolucao" ? "Devolução" : r.tipo === "transferencia" ? "Transferência" : "Saída"}
                 </span>
               )},
               { label: "Item",       render: (r) => <div><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.itemNome}</div><div style={{ fontSize: 11, color: t.textFaint }}>{r.categoria || "—"}</div></div> },
               { label: "Nº Série",   render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.serial || "—"}</span> },
               { label: "Patrimônio", render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.patrimonio || "—"}</span> },
-              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : t.danger }}>{r.tipo === "entrada" ? "+" : r.tipo === "ajuste" ? "~" : r.tipo === "devolucao" ? "↩" : "-"}{r.qty}</span> },
+              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : r.tipo === "transferencia" ? "#F97316" : t.danger }}>{r.tipo === "entrada" ? "+" : r.tipo === "ajuste" ? "~" : r.tipo === "devolucao" ? "↩" : r.tipo === "transferencia" ? "⇄" : "-"}{r.qty}</span> },
               { label: "Total",      render: (r) => <span style={{ fontWeight: 600, color: t.text }}>{r.qtdTotal ?? "—"}</span> },
               { label: "Disponível", render: (r) => <span style={{ fontWeight: 600, color: r.qtdDisponivel === 0 ? t.danger : t.success }}>{r.qtdDisponivel ?? "—"}</span> },
               {
@@ -85,6 +73,22 @@ export default function MovimentacoesPage() {
                 render: (r) => {
                   const temFunc  = r.funcionario && r.funcionario !== "—";
                   const temDepto = r.depto && r.depto !== "—";
+
+                  if (r.tipo === "transferencia") {
+                    const partes = r.obs?.split(" → ") || [];
+                    return (
+                      <div>
+                        <div style={{ fontSize: 11, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                          <FontAwesomeIcon icon={faArrowRightArrowLeft} /> Transferido
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                          <span style={{ color: t.danger, fontWeight: 600 }}>{partes[0] || r.obs}</span>
+                          {partes[1] && <><span style={{ color: "#F97316" }}>→</span><span style={{ color: t.success, fontWeight: 600 }}>{partes[1]}</span></>}
+                        </div>
+                        {temDepto && <div style={{ fontSize: 11, color: t.textFaint }}>{r.depto}</div>}
+                      </div>
+                    );
+                  }
 
                   if (r.tipo === "ajuste") {
                     return (
@@ -165,12 +169,6 @@ export default function MovimentacoesPage() {
         </div>
       </main>
 
-      {movModal && (
-        <ModalMovimento tipo={movModal.tipo} itemInicial={movModal.item} itens={itens}
-          onSave={(params) => { handleMovimento({ tipo: movModal.tipo, ...params }); setMovModal(null); }}
-          onClose={() => setMovModal(null)} t={t}
-        />
-      )}
     </>
   );
 }

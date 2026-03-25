@@ -32,7 +32,8 @@ export async function POST(req) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  const { tipo, item_nome, serial, patrimonio, categoria, qty, funcionario, departamento, obs, operador } = body;
+  const { tipo, item_nome, serial, patrimonio, categoria, qty, funcionario, departamento, obs, operador, unidade } = body;
+  const unidadeNorm = (unidade || "florianopolis").toLowerCase();
 
   // Validações básicas
   if (!tipo || !["entrada", "saida", "saída"].includes(tipo.toLowerCase())) {
@@ -49,11 +50,12 @@ export async function POST(req) {
   const isEntrada = tipoNorm === "entrada";
   const supabase = getSupabaseAdmin();
 
-  // Busca o equipamento pelo nome (busca parcial, case-insensitive)
+  // Busca o equipamento pelo nome (busca parcial, case-insensitive) na unidade correta
   const { data: equipamentos } = await supabase
     .from("equipamentos")
     .select("*")
     .ilike("nome", `%${item_nome}%`)
+    .eq("unidade", unidadeNorm)
     .limit(5);
 
   let equipId = null;
@@ -126,6 +128,7 @@ export async function POST(req) {
       notas: `Cadastrado via chatbot Telegram. Operador: ${operador || "n8n"}`,
       qtd_total: qty,
       qtd_disponivel: qty,
+      unidade: unidadeNorm,
     };
     const { data: created } = await supabase
       .from("equipamentos")
