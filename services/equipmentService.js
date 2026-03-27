@@ -40,9 +40,10 @@ export async function deleteEquipamento(db, id) {
  * Cria um registro separado de manutenção para qty unidades e reduz o item original.
  */
 export async function splitEquipamentoManutencao(db, item, qty) {
+  if (qty > item.qtdDisponivel) throw new Error(`Somente ${item.qtdDisponivel} unidade(s) disponível(is) para manutenção.`);
   const { data: orig, error: e1 } = await db
     .from("equipamentos")
-    .update({ qtd_total: item.qtdTotal - qty })
+    .update({ qtd_total: item.qtdTotal - qty, qtd_disponivel: item.qtdDisponivel - qty })
     .eq("id", item.id)
     .select()
     .single();
@@ -69,8 +70,8 @@ export async function splitEquipamentoManutencao(db, item, qty) {
     .select()
     .single();
   if (e2) {
-    // Rollback: restaura qtd_total original antes de lançar o erro
-    await db.from("equipamentos").update({ qtd_total: item.qtdTotal }).eq("id", item.id);
+    // Rollback: restaura qtd_total e qtd_disponivel originais antes de lançar o erro
+    await db.from("equipamentos").update({ qtd_total: item.qtdTotal, qtd_disponivel: item.qtdDisponivel }).eq("id", item.id);
     throw e2;
   }
 

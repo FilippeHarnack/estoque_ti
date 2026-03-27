@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { href: "/movimentacoes",  icon: faArrowsUpDown,  label: "Movimentações" },
   { href: "/historico",      icon: faClipboardList, label: "Histórico"     },
   { href: "/relatorios",     icon: faChartBar,      label: "Relatórios"    },
-  { href: "/seguranca",      icon: faShieldHalved,  label: "Segurança", adminOnly: true },
+  { href: "/seguranca",      icon: faShieldHalved,  label: "Segurança" },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

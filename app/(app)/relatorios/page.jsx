@@ -2,13 +2,24 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/contexts/AppContext";
 import Header from "@/components/layout/Header";
-import { StatCard, Table, StatusBadge } from "@/components/ui";
+import { StatCard } from "@/components/ui";
 import { CATEGORIAS_ITENS, CAT_ICONS, hoje } from "@/lib/constants";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowDown, faArrowUp, faBriefcase, faWrench, faChartBar, faUser,
-  faFileArrowDown, faXmark, faBoxOpen,
+  faFileArrowDown, faXmark, faBoxOpen, faRotateLeft, faShuffle, faSliders, faCalendar,
 } from "@fortawesome/free-solid-svg-icons";
+
+/* ─── Helpers de tipo ─── */
+const isEntrada = (tipo) => tipo === "entrada" || tipo === "devolucao" || tipo === "ajuste" || tipo === "retorno";
+const TIPO_META = {
+  entrada:      { label: "Entrada",      color: "#10B981", bg: "#052e16", icon: faArrowDown },
+  devolucao:    { label: "Devolução",    color: "#10B981", bg: "#052e16", icon: faRotateLeft },
+  ajuste:       { label: "Ajuste",       color: "#10B981", bg: "#052e16", icon: faSliders },
+  retorno:      { label: "Retorno",      color: "#10B981", bg: "#052e16", icon: faRotateLeft },
+  saida:        { label: "Saída",        color: "#EF4444", bg: "#450a0a", icon: faArrowUp },
+  transferencia:{ label: "Transferência",color: "#F59E0B", bg: "#451a03", icon: faShuffle },
+};
 
 /* ─── Gráfico SVG ─── */
 function BarChart({ dados, t }) {
@@ -64,9 +75,9 @@ async function downloadExcel(historico, periodo) {
 
   const agora        = new Date();
   const dataGeracao  = agora.toLocaleDateString("pt-BR") + " " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros" }[periodo];
-  const totalE = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
-  const totalS = historico.filter((h) => h.tipo === "saida").reduce((s, h)   => s + h.qty, 0);
+  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros", personalizado: "Por Data" }[periodo] ?? "Período Personalizado";
+  const totalE = historico.filter((h) => isEntrada(h.tipo)).reduce((s, h) => s + h.qty, 0);
+  const totalS = historico.filter((h) => !isEntrada(h.tipo)).reduce((s, h) => s + h.qty, 0);
   const saldo  = totalE - totalS;
 
   /* ── estilos reutilizáveis ── */
@@ -89,62 +100,61 @@ async function downloadExcel(historico, periodo) {
 
   // Linha 1 — título
   rows.push([cell("RELATÓRIO DE MOVIMENTAÇÕES — ESTOQUE TI", { font: font(true, 14, "FFFFFF"), fill: fill(HEADER_BG), alignment: align("left"), border: border() }),
-    ...Array(9).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
+    ...Array(8).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
 
   // Linha 2 — vazia
-  rows.push(Array(10).fill(cell("")));
+  rows.push(Array(9).fill(cell("")));
 
   // Linhas de metadados
   const meta = (lbl, val) => [
     cell(lbl, { font: font(true, 11, "475569"), fill: fill(GRAY_BG), alignment: align("left") }),
     cell(val, { font: font(false, 11),          fill: fill(GRAY_BG), alignment: align("left") }),
-    ...Array(8).fill(cell("", { fill: fill(GRAY_BG) })),
+    ...Array(7).fill(cell("", { fill: fill(GRAY_BG) })),
   ];
   rows.push(meta("Período:",           labelPeriodo));
   rows.push(meta("Gerado em:",         dataGeracao));
   rows.push(meta("Total de registros:", historico.length));
 
   // Linha vazia
-  rows.push(Array(10).fill(cell("")));
+  rows.push(Array(9).fill(cell("")));
 
   // Cabeçalho das colunas
-  const COLS = ["Data", "Hora", "Tipo", "Item", "Categoria", "Qtd", "Funcionário", "Departamento", "Operador", "Observação"];
+  const COLS = ["Data", "Tipo", "Item", "Categoria", "Qtd", "Funcionário", "Departamento", "Operador", "Observação"];
   rows.push(COLS.map((h) => cell(h, { font: font(true, 11, "FFFFFF"), fill: fill(ACCENT), alignment: align("center"), border: border() })));
 
   // Dados
   historico.forEach((h, i) => {
-    const [data, hora] = (h.data || "").split("T");
-    const entrada = h.tipo === "entrada";
-    const tipoBg  = entrada ? GREEN_BG : RED_BG;
-    const tipoFg  = entrada ? GREEN_FG : RED_FG;
+    const ent     = isEntrada(h.tipo);
+    const meta    = TIPO_META[h.tipo] || (ent ? TIPO_META.entrada : TIPO_META.saida);
+    const tipoBg  = ent ? GREEN_BG : RED_BG;
+    const tipoFg  = ent ? GREEN_FG : RED_FG;
     const rowBg   = i % 2 === 0 ? "FFFFFF" : ROW_ALT;
     const base    = { fill: fill(rowBg), border: border(), alignment: align("left") };
 
     rows.push([
-      cell(data || h.data,                { ...base, font: font(false, 10), alignment: align("center") }),
-      cell(hora ? hora.slice(0, 5) : "",  { ...base, font: font(false, 10), alignment: align("center") }),
-      cell(entrada ? "Entrada" : "Saída", { font: font(true, 10, tipoFg), fill: fill(tipoBg), border: border(), alignment: align("center") }),
-      cell(h.itemNome,                    { ...base, font: font(false, 11) }),
-      cell(h.categoria,                   { ...base, font: font(false, 10) }),
-      cell(h.qty,                         { ...base, font: font(true, 11),  alignment: align("center"), t: "n" }),
-      cell(h.funcionario || "—",          { ...base, font: font(false, 10) }),
-      cell(h.depto       || "—",          { ...base, font: font(false, 10) }),
-      cell(h.usuario     || "—",          { ...base, font: font(false, 10) }),
-      cell(h.obs         || "",           { ...base, font: font(false, 10) }),
+      cell(h.data || "",       { ...base, font: font(false, 10), alignment: align("center") }),
+      cell(meta.label,         { font: font(true, 10, tipoFg), fill: fill(tipoBg), border: border(), alignment: align("center") }),
+      cell(h.itemNome,         { ...base, font: font(false, 11) }),
+      cell(h.categoria,        { ...base, font: font(false, 10) }),
+      cell(h.qty,              { ...base, font: font(true, 11),  alignment: align("center"), t: "n" }),
+      cell(h.funcionario || "—", { ...base, font: font(false, 10) }),
+      cell(h.depto       || "—", { ...base, font: font(false, 10) }),
+      cell(h.usuario     || "—", { ...base, font: font(false, 10) }),
+      cell(h.obs         || "",  { ...base, font: font(false, 10) }),
     ]);
   });
 
   // Linha vazia
-  rows.push(Array(10).fill(cell("")));
+  rows.push(Array(9).fill(cell("")));
 
   // Resumo
   rows.push([cell("RESUMO", { font: font(true, 12, "FFFFFF"), fill: fill(HEADER_BG), alignment: align("left"), border: border() }),
-    ...Array(9).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
+    ...Array(8).fill(cell("", { fill: fill(HEADER_BG), border: border() }))]);
 
   const resumoRow = (lbl, val, bg, fg) => [
     cell(lbl, { font: font(true, 11, fg || "1E293B"),   fill: fill(bg || GRAY_BG), alignment: align("left"),   border: border() }),
     cell(val, { font: font(true, 12, fg || "1E293B"),   fill: fill(bg || GRAY_BG), alignment: align("center"), border: border(), t: "n" }),
-    ...Array(8).fill(cell("", { fill: fill(bg || GRAY_BG), border: border() })),
+    ...Array(7).fill(cell("", { fill: fill(bg || GRAY_BG), border: border() })),
   ];
   rows.push(resumoRow("Total de Entradas", totalE, GREEN_BG, GREEN_FG));
   rows.push(resumoRow("Total de Saídas",   totalS, RED_BG,   RED_FG));
@@ -164,13 +174,13 @@ async function downloadExcel(historico, periodo) {
 
   // Mesclagem do título e resumo
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },     // título
-    { s: { r: rows.length - 4, c: 0 }, e: { r: rows.length - 4, c: 9 } }, // RESUMO
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },     // título
+    { s: { r: rows.length - 4, c: 0 }, e: { r: rows.length - 4, c: 8 } }, // RESUMO
   ];
 
   // Larguras das colunas
   ws["!cols"] = [
-    { wch: 12 }, { wch: 7 }, { wch: 10 }, { wch: 28 }, { wch: 14 },
+    { wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 14 },
     { wch: 6 },  { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 28 },
   ];
 
@@ -183,13 +193,13 @@ async function downloadExcel(historico, periodo) {
 function RelatorioModal({ t, historico, periodo, onClose }) {
   const dadosGrafico = useMemo(() => CATEGORIAS_ITENS.map((cat) => ({
     cat,
-    entradas: historico.filter((h) => h.tipo === "entrada" && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
-    saidas:   historico.filter((h) => h.tipo === "saida"   && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+    entradas: historico.filter((h) => isEntrada(h.tipo) && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+    saidas:   historico.filter((h) => !isEntrada(h.tipo) && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
   })).filter((d) => d.entradas > 0 || d.saidas > 0), [historico]);
 
-  const totalE = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
-  const totalS = historico.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0);
-  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros" }[periodo];
+  const totalE = historico.filter((h) => isEntrada(h.tipo)).reduce((s, h) => s + h.qty, 0);
+  const totalS = historico.filter((h) => !isEntrada(h.tipo)).reduce((s, h) => s + h.qty, 0);
+  const labelPeriodo = { hoje: "Hoje", mes: "Este Mês", todos: "Todos os Registros", personalizado: "Por Data" }[periodo] ?? "Período Personalizado";
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
@@ -254,12 +264,14 @@ function RelatorioModal({ t, historico, periodo, onClose }) {
                 <tr key={h.id} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
                   <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.data}</td>
                   <td style={{ padding: "9px 12px" }}>
-                    <span style={{ fontWeight: 700, fontSize: 11, color: h.tipo === "entrada" ? "#10B981" : "#EF4444", background: h.tipo === "entrada" ? "#052e16" : "#450a0a", padding: "2px 8px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <FontAwesomeIcon icon={h.tipo === "entrada" ? faArrowDown : faArrowUp} />{h.tipo === "entrada" ? "Entrada" : "Saída"}
-                    </span>
+                    {(() => { const m = TIPO_META[h.tipo] || TIPO_META.entrada; return (
+                      <span style={{ fontWeight: 700, fontSize: 11, color: m.color, background: m.bg, padding: "2px 8px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <FontAwesomeIcon icon={m.icon} />{m.label}
+                      </span>
+                    ); })()}
                   </td>
                   <td style={{ padding: "9px 12px", fontSize: 13, color: t.text, fontWeight: 500 }}>{h.itemNome}</td>
-                  <td style={{ padding: "9px 12px", fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? "#10B981" : "#EF4444" }}>{h.tipo === "entrada" ? "+" : "-"}{h.qty}</td>
+                  <td style={{ padding: "9px 12px", fontSize: 13, fontWeight: 700, color: isEntrada(h.tipo) ? "#10B981" : "#EF4444" }}>{isEntrada(h.tipo) ? "+" : "-"}{h.qty}</td>
                   <td style={{ padding: "9px 12px", fontSize: 12, color: t.textMuted }}>{h.funcionario === "—" ? "—" : h.funcionario}</td>
                   <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.usuario}</td>
                 </tr>
@@ -272,26 +284,197 @@ function RelatorioModal({ t, historico, periodo, onClose }) {
   );
 }
 
+/* ─── Range Picker (estilo passagem aérea) ─── */
+const MESES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_CURTOS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+
+function RangePicker({ t, dataInicio, dataFim, onApply, onClear }) {
+  const todayStr = hoje();
+  const now = new Date();
+  const [viewYear, setViewYear]   = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [hoverDate, setHoverDate] = useState(null);
+  const [tempStart, setTempStart] = useState(dataInicio || "");
+  const [tempEnd,   setTempEnd]   = useState(dataFim    || "");
+  const [step, setStep]           = useState(!dataInicio ? "inicio" : !dataFim ? "fim" : "inicio");
+
+  const RNG = `${t.accent}28`;
+  const m2y = viewMonth === 11 ? viewYear + 1 : viewYear;
+  const m2  = viewMonth === 11 ? 0 : viewMonth + 1;
+
+  function cells(y, m) {
+    const first = (new Date(y, m, 1).getDay() + 6) % 7;
+    const total = new Date(y, m + 1, 0).getDate();
+    const arr = Array(first).fill(null);
+    for (let d = 1; d <= total; d++) arr.push(d);
+    while (arr.length % 7) arr.push(null);
+    return arr;
+  }
+
+  function toDs(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+
+  function handleClick(d) {
+    if (step === "inicio") {
+      setTempStart(d); setTempEnd(""); setStep("fim");
+    } else {
+      if (d < tempStart) { setTempStart(d); setTempEnd(""); setStep("fim"); }
+      else if (d === tempStart) { setTempEnd(""); setStep("fim"); }
+      else { setTempEnd(d); setStep("inicio"); }
+    }
+  }
+
+  function getState(d) {
+    const effEnd = tempEnd || (step === "fim" ? hoverDate : null);
+    const start = d === tempStart;
+    const end   = !!effEnd && d === effEnd && d !== tempStart;
+    let range = false;
+    if (tempStart && effEnd) {
+      const lo = tempStart < effEnd ? tempStart : effEnd;
+      const hi = tempStart < effEnd ? effEnd   : tempStart;
+      range = d > lo && d < hi;
+    }
+    return { start, end, range, effEnd };
+  }
+
+  function fmt(ds) {
+    return ds ? new Date(ds + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+  }
+
+  function renderMonth(y, m) {
+    return (
+      <div style={{ width: 238 }}>
+        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 10 }}>
+          {MESES_PT[m]} {y}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+          {DIAS_CURTOS.map((d) => (
+            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: t.textFaint, padding: "2px 0" }}>{d}</div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+          {cells(y, m).map((day, i) => {
+            if (!day) return <div key={i} style={{ height: 34 }} />;
+            const d = toDs(y, m, day);
+            const { start, end, range, effEnd } = getState(d);
+            const today = d === todayStr;
+            const sel   = start || end;
+
+            let wrapBg = "transparent";
+            if (range)              wrapBg = RNG;
+            else if (start && effEnd) wrapBg = `linear-gradient(to right, transparent 50%, ${RNG} 50%)`;
+            else if (end && tempStart) wrapBg = `linear-gradient(to left, transparent 50%, ${RNG} 50%)`;
+
+            return (
+              <div key={i}
+                style={{ height: 34, background: wrapBg, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                onClick={() => handleClick(d)}
+                onMouseEnter={() => step === "fim" && setHoverDate(d)}
+                onMouseLeave={() => step === "fim" && setHoverDate(null)}
+              >
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: sel ? t.accent : "transparent",
+                  color: sel ? "#fff" : today ? t.accent : t.text,
+                  fontWeight: sel || today ? 700 : 400,
+                  fontSize: 13,
+                  border: today && !sel ? `1.5px solid ${t.accent}` : "none",
+                  userSelect: "none",
+                }}>
+                  {day}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const canApply = !!(tempStart && tempEnd);
+
+  return (
+    <div style={{
+      position: "absolute", zIndex: 300, top: "calc(100% + 8px)", left: 0,
+      background: t.surface, border: `1px solid ${t.border}`, borderRadius: 16,
+      padding: "16px 18px", boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
+    }}>
+      {/* Campos início / fim */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        {[
+          { label: "Início", val: tempStart, active: step === "inicio", onClick: () => setStep("inicio") },
+          { label: "Fim",    val: tempEnd,   active: step === "fim",    onClick: () => tempStart && setStep("fim") },
+        ].map(({ label, val, active, onClick }) => (
+          <div key={label} onClick={onClick}
+            style={{ flex: 1, padding: "8px 14px", borderRadius: 10, border: `2px solid ${active ? t.accent : t.border}`, background: t.bg, cursor: "pointer" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 1 }}>{label}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: val ? t.text : t.textFaint }}>{fmt(val)}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Calendários */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+        <button onClick={() => { if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); } else setViewMonth(m => m - 1); }}
+          style={{ marginTop: 20, background: "none", border: `1px solid ${t.border}`, color: t.textMuted, borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          ‹
+        </button>
+        {renderMonth(viewYear, viewMonth)}
+        <div style={{ width: 1, background: t.border, alignSelf: "stretch", margin: "0 8px" }} />
+        {renderMonth(m2y, m2)}
+        <button onClick={() => { if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); } else setViewMonth(m => m + 1); }}
+          style={{ marginTop: 20, background: "none", border: `1px solid ${t.border}`, color: t.textMuted, borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          ›
+        </button>
+      </div>
+
+      {/* Rodapé */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${t.border}` }}>
+        <button onClick={() => { setTempStart(""); setTempEnd(""); setStep("inicio"); onClear(); }}
+          style={{ padding: "7px 16px", borderRadius: 10, border: `1px solid ${t.borderMed}`, background: "transparent", color: t.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+          Limpar
+        </button>
+        <button onClick={() => canApply && onApply(tempStart, tempEnd)} disabled={!canApply}
+          style={{ padding: "7px 20px", borderRadius: 10, border: "none", background: canApply ? t.accent : t.borderMed, color: canApply ? "#fff" : t.textFaint, fontSize: 13, fontWeight: 700, cursor: canApply ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+          Aplicar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Página principal ─── */
 export default function RelatoriosPage() {
-  const { t, dark, itens, historico, stats } = useApp();
+  const { t, historico, stats } = useApp();
   const [periodo, setPeriodo]         = useState("mes");
   const [modalAberto, setModalAberto] = useState(false);
   const [catRel, setCatRel]           = useState("Todas");
+  const [dataInicio, setDataInicio]   = useState("");
+  const [dataFim, setDataFim]         = useState("");
+  const [pickerAberto, setPickerAberto] = useState(false);
 
   const histFiltrado = useMemo(() => {
     const agora = new Date(); const hj = hoje();
     return historico.filter((h) => {
       if (periodo === "hoje") return h.data === hj;
-      if (periodo === "mes")  { const d = new Date(h.data); return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear(); }
+      if (periodo === "mes")  { const d = new Date(h.data); return d.getUTCMonth() === agora.getUTCMonth() && d.getUTCFullYear() === agora.getUTCFullYear(); }
+      if (periodo === "personalizado") {
+        if (!dataInicio && !dataFim) return true;
+        if (dataInicio && h.data < dataInicio) return false;
+        if (dataFim    && h.data > dataFim)    return false;
+        return true;
+      }
       return true;
     });
-  }, [historico, periodo]);
+  }, [historico, periodo, dataInicio, dataFim]);
 
-  const relCategoria = useMemo(() => CATEGORIAS_ITENS.map((cat) => {
-    const lista = itens.filter((i) => i.categoria === cat);
-    return { cat, total: lista.length, unidades: lista.reduce((s, i) => s + i.qtdTotal, 0), disponiveis: lista.reduce((s, i) => s + i.qtdDisponivel, 0) };
-  }).filter((r) => r.total > 0), [itens]);
+  const relCategoria = useMemo(() => CATEGORIAS_ITENS.map((cat) => ({
+    cat,
+    entradas: histFiltrado.filter((h) => isEntrada(h.tipo) && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+    saidas:   histFiltrado.filter((h) => !isEntrada(h.tipo) && h.categoria === cat).reduce((s, h) => s + h.qty, 0),
+  })).filter((r) => r.entradas > 0 || r.saidas > 0), [histFiltrado]);
 
   const relCategoriaFiltrada = useMemo(() =>
     catRel === "Todas" ? relCategoria : relCategoria.filter((r) => r.cat === catRel),
@@ -312,20 +495,46 @@ export default function RelatoriosPage() {
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 600 }}>Período:</span>
-            {[{ v: "hoje", l: "Hoje" }, { v: "mes", l: "Este Mês" }, { v: "todos", l: "Todos" }].map((p) => (
-              <button key={p.v} onClick={() => setPeriodo(p.v)}
+            {[{ v: "hoje", l: "Hoje" }, { v: "mes", l: "Este Mês" }, { v: "todos", l: "Todos" }, { v: "personalizado", l: "Data" }].map((p) => (
+              <button key={p.v} onClick={() => { if (p.v === "personalizado" && periodo === "personalizado") { setPickerAberto(v => !v); } else { setPeriodo(p.v); setPickerAberto(p.v === "personalizado"); } }}
                 style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${periodo === p.v ? t.accent : t.borderMed}`, background: periodo === p.v ? t.accent : "transparent", color: periodo === p.v ? "#fff" : t.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 {p.l}
               </button>
             ))}
+            {periodo === "personalizado" && (
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setPickerAberto(v => !v)}
+                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 14px", borderRadius: 20, border: `1px solid ${(dataInicio || dataFim) ? t.accent : t.borderMed}`, background: (dataInicio && dataFim) ? `${t.accent}18` : "transparent", color: (dataInicio || dataFim) ? t.accent : t.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                  <FontAwesomeIcon icon={faCalendar} />
+                  {dataInicio && dataFim
+                    ? `${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} → ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`
+                    : dataInicio
+                      ? `${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} → ...`
+                      : "Selecionar datas"}
+                </button>
+                {pickerAberto && (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 299 }} onClick={() => setPickerAberto(false)} />
+                    <RangePicker
+                      t={t}
+                      dataInicio={dataInicio}
+                      dataFim={dataFim}
+                      onApply={(start, end) => { setDataInicio(start); setDataFim(end); setPickerAberto(false); }}
+                      onClear={() => { setDataInicio(""); setDataFim(""); }}
+                    />
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard t={t} label="Entradas no Período" icon={<FontAwesomeIcon icon={faArrowDown} />} accent="#10B981" value={histFiltrado.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0)} sub="unidades recebidas" />
-            <StatCard t={t} label="Saídas no Período"   icon={<FontAwesomeIcon icon={faArrowUp} />}   accent="#EF4444" value={histFiltrado.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0)} sub="unidades distribuídas" />
-            <StatCard t={t} label="Em Uso"               icon={<FontAwesomeIcon icon={faBriefcase} />} accent="#3B82F6" value={stats.emUso}      sub={`de ${stats.total} itens`} />
-            <StatCard t={t} label="Disponível"           icon={<FontAwesomeIcon icon={faBoxOpen} />}   accent="#10B981" value={stats.dispUnid}    sub="unidades disponíveis" />
-            <StatCard t={t} label="Em Manutenção"        icon={<FontAwesomeIcon icon={faWrench} />}    accent="#F59E0B" value={stats.manutencao} sub="necessitam atenção" />
+            <StatCard t={t} label="Entradas no Período"     icon={<FontAwesomeIcon icon={faArrowDown} />}  accent="#10B981" value={histFiltrado.filter((h) => isEntrada(h.tipo)).reduce((s, h) => s + h.qty, 0)} sub="unidades recebidas" />
+            <StatCard t={t} label="Saídas no Período"       icon={<FontAwesomeIcon icon={faArrowUp} />}    accent="#EF4444" value={histFiltrado.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0)} sub="unidades distribuídas" />
+            <StatCard t={t} label="Transferências"          icon={<FontAwesomeIcon icon={faShuffle} />}    accent="#F59E0B" value={histFiltrado.filter((h) => h.tipo === "transferencia").length} sub="entre funcionários" />
+            <StatCard t={t} label="Em Uso"                  icon={<FontAwesomeIcon icon={faBriefcase} />}  accent="#3B82F6" value={stats.emUso}      sub={`de ${stats.total} itens`} />
+            <StatCard t={t} label="Disponível"              icon={<FontAwesomeIcon icon={faBoxOpen} />}    accent="#10B981" value={stats.dispUnid}    sub="unidades disponíveis" />
+            <StatCard t={t} label="Em Manutenção"           icon={<FontAwesomeIcon icon={faWrench} />}     accent="#F59E0B" value={stats.manutencao}  sub="necessitam atenção" />
           </div>
 
           <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, overflow: "hidden" }}>
@@ -337,67 +546,89 @@ export default function RelatoriosPage() {
                 {["Todas", ...CATEGORIAS_ITENS].map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: t.bg }}>
-                  {["Categoria", "Itens", "Unid. Total", "Unid. Disponível", "% Disponível"].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {relCategoriaFiltrada.map((r, i) => {
-                  const pct = r.unidades ? Math.round((r.disponiveis / r.unidades) * 100) : 0;
-                  return (
-                    <tr key={r.cat} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
-                      <td style={{ padding: "11px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 14, color: t.textMuted }}>
-                            {CAT_ICONS[r.cat] && <FontAwesomeIcon icon={CAT_ICONS[r.cat]} />}
-                          </span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.cat}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700, color: t.text }}>{r.total}</td>
-                      <td style={{ padding: "11px 14px", fontSize: 13, color: t.textMuted }}>{r.unidades}</td>
-                      <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700, color: r.disponiveis === 0 ? t.danger : t.success }}>{r.disponiveis}</td>
-                      <td style={{ padding: "11px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ flex: 1, height: 6, background: t.bg, borderRadius: 10, overflow: "hidden", maxWidth: 80 }}>
-                            <div style={{ width: `${pct}%`, height: "100%", background: pct > 50 ? t.success : pct > 20 ? t.gold : t.danger, borderRadius: 10 }} />
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: pct > 50 ? t.success : pct > 20 ? t.gold : t.danger }}>{pct}%</span>
-                        </div>
-                      </td>
+            {relCategoriaFiltrada.length === 0
+              ? <div style={{ padding: "24px 18px", textAlign: "center", color: t.textFaint, fontSize: 13 }}>Nenhuma movimentação no período.</div>
+              : <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: t.bg }}>
+                      {["Categoria", "Entradas", "Saídas", "Saldo"].map((h) => (
+                        <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+                      ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {relCategoriaFiltrada.map((r, i) => {
+                      const saldo = r.entradas - r.saidas;
+                      return (
+                        <tr key={r.cat} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
+                          <td style={{ padding: "11px 14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 14, color: t.textMuted }}>
+                                {CAT_ICONS[r.cat] && <FontAwesomeIcon icon={CAT_ICONS[r.cat]} />}
+                              </span>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.cat}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700, color: "#10B981" }}>+{r.entradas}</td>
+                          <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700, color: r.saidas > 0 ? "#EF4444" : t.textFaint }}>-{r.saidas}</td>
+                          <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700, color: saldo >= 0 ? "#10B981" : "#EF4444" }}>{saldo >= 0 ? "+" : ""}{saldo}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
           </div>
 
           <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, overflow: "hidden" }}>
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: 8 }}>
               <FontAwesomeIcon icon={faUser} style={{ color: t.accent }} />
-              <span style={{ fontWeight: 700, fontSize: 14, color: t.text }}>Equipamentos em Uso por Funcionário</span>
+              <span style={{ fontWeight: 700, fontSize: 14, color: t.text }}>Movimentações no Período</span>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: t.textFaint }}>{histFiltrado.length} registro{histFiltrado.length !== 1 ? "s" : ""}</span>
             </div>
-            <Table t={t} emptyMsg="Nenhum item em uso."
-              cols={[
-                { label: "Item",         render: (r) => (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 14, color: t.textMuted }}>
-                      {CAT_ICONS[r.categoria] && <FontAwesomeIcon icon={CAT_ICONS[r.categoria]} />}
-                    </span>
-                    <span style={{ fontWeight: 600, color: t.text, fontSize: 13 }}>{r.nome}</span>
-                  </div>
-                )},
-                { label: "Categoria",    render: (r) => <span style={{ color: t.textMuted }}>{r.categoria}</span> },
-                { label: "Funcionário",  render: (r) => <span style={{ fontWeight: 600, color: t.text }}>{r.funcionario || "—"}</span> },
-                { label: "Departamento", render: (r) => <span style={{ color: t.textMuted }}>{r.departamento === "-" ? "—" : r.departamento}</span> },
-                { label: "Status",       render: (r) => <StatusBadge status={r.status} dark={dark} /> },
-              ]}
-              rows={itens.filter((i) => i.status === "Em Uso" && i.funcionario && i.funcionario !== "—")}
-            />
+            {histFiltrado.length === 0
+              ? <div style={{ padding: "24px 18px", textAlign: "center", color: t.textFaint, fontSize: 13 }}>Nenhuma movimentação no período.</div>
+              : <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: t.bg }}>
+                      {["Data", "Tipo", "Item", "Qtd", "Funcionário", "Operador"].map((h) => (
+                        <th key={h} style={{ padding: "9px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: t.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {histFiltrado.map((h, i) => {
+                      const m = TIPO_META[h.tipo] || TIPO_META.entrada;
+                      return (
+                        <tr key={h.id} style={{ borderTop: `1px solid ${t.border}`, background: i % 2 === 0 ? t.surface : t.rowAlt }}>
+                          <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.data}</td>
+                          <td style={{ padding: "9px 12px" }}>
+                            <span style={{ fontWeight: 700, fontSize: 11, color: m.color, background: m.bg, padding: "2px 8px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <FontAwesomeIcon icon={m.icon} />{m.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: "9px 12px", fontSize: 13, color: t.text, fontWeight: 500 }}>{h.itemNome}</td>
+                          <td style={{ padding: "9px 12px", fontSize: 13, fontWeight: 700, color: isEntrada(h.tipo) ? "#10B981" : h.tipo === "transferencia" ? "#F59E0B" : "#EF4444" }}>{isEntrada(h.tipo) ? "+" : "-"}{h.qty}</td>
+                          <td style={{ padding: "9px 12px", fontSize: 12, color: t.textMuted }}>
+                            {(h.tipo === "transferencia" || h.tipo === "retorno") ? (() => {
+                              const arrowIdx = (h.obs || "").indexOf(" → ");
+                              const de = arrowIdx >= 0 ? h.obs.slice(0, arrowIdx).trim() : "—";
+                              const afterArrow = arrowIdx >= 0 ? h.obs.slice(arrowIdx + 3) : h.funcionario || "—";
+                              const dotIdx = afterArrow.indexOf(" · ");
+                              const paraRaw = dotIdx >= 0 ? afterArrow.slice(0, dotIdx).trim() : afterArrow;
+                              const para = /^estoque/i.test(paraRaw) ? "Estoque" : paraRaw;
+                              const corDe = h.tipo === "retorno" ? "#10B981" : "#F59E0B";
+                              const corPara = h.tipo === "retorno" ? "#10B981" : t.success;
+                              return <span><strong style={{ color: corDe }}>{de}</strong><span style={{ color: corDe, margin: "0 4px" }}>→</span><strong style={{ color: corPara }}>{para}</strong></span>;
+                            })() : h.funcionario === "—" ? "—" : h.funcionario || "—"}
+                          </td>
+                          <td style={{ padding: "9px 12px", fontSize: 12, color: t.textFaint }}>{h.usuario}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
           </div>
         </div>
       </main>

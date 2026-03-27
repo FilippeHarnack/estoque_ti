@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CATEGORIAS_ITENS, DEPARTAMENTOS, STATUS_LIST } from "@/lib/constants";
 import { InputField, SelectField, Btn } from "@/components/ui";
 import { hoje } from "@/lib/constants";
@@ -59,8 +59,8 @@ function MarcaField({ value, onChange, marcas, onAddMarca, t }) {
             style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: `1px solid ${t.borderMed}`, background: t.inputBg, color: value ? t.text : t.textFaint, fontSize: 13, fontFamily: "inherit", outline: "none", cursor: "pointer" }}
           >
             <option value="">Selecionar marca...</option>
-            {marcas.map((m) => (
-              <option key={m.id} value={m.nome}>{m.nome}</option>
+            {marcas.map((nome) => (
+              <option key={nome} value={nome}>{nome}</option>
             ))}
           </select>
           <button onClick={() => setAdicionando(true)} title="Nova marca"
@@ -129,7 +129,7 @@ function FuncionarioField({ value, onChange, funcionarios, t }) {
 
 
 export default function FormItem({ item, onSave, onClose, t }) {
-  const { handleAddMarca, funcionarios, marcas } = useApp();
+  const { handleAddMarca, funcionarios, marcas, itens } = useApp();
 
   const [f, setF] = useState({
     nome:          item?.nome         || "",
@@ -148,15 +148,23 @@ export default function FormItem({ item, onSave, onClose, t }) {
   });
   const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
+  const marcasSugeridas = useMemo(() => {
+    const fromItens = itens
+      .filter((i) => i.categoria === f.categoria && i.marca && i.marca !== "—")
+      .map((i) => i.marca);
+    const fromMarcas = marcas.map((m) => m.nome);
+    return [...new Set([...fromMarcas, ...fromItens])].sort();
+  }, [itens, marcas, f.categoria]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
         <InputField label="Nome do Item"       value={f.nome}         onChange={(e) => s("nome", e.target.value)}          t={t} />
-        <SelectField label="Categoria"         value={f.categoria}    onChange={(e) => s("categoria", e.target.value)}      opts={CATEGORIAS_ITENS} t={t} half />
+        <SelectField label="Categoria"         value={f.categoria}    onChange={(e) => { s("categoria", e.target.value); s("marca", ""); }} opts={CATEGORIAS_ITENS} t={t} half />
         <MarcaField
           value={f.marca}
           onChange={(v) => s("marca", v)}
-          marcas={marcas}
+          marcas={marcasSugeridas}
           onAddMarca={handleAddMarca}
           t={t}
         />
@@ -199,9 +207,14 @@ export default function FormItem({ item, onSave, onClose, t }) {
         <textarea value={f.notas} onChange={(e) => s("notas", e.target.value)} rows={2} style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, fontSize: 14, color: t.text, background: t.inputBg, fontFamily: "inherit", outline: "none", resize: "vertical" }} />
       </div>
 
+      {item && f.qtdDisponivel > f.qtdTotal && (
+        <div style={{ padding: "8px 12px", borderRadius: 9, background: "#450a0a", border: "1px solid #EF444488", fontSize: 12, color: "#EF4444", fontWeight: 600 }}>
+          ⚠ Qtd. Disponível ({f.qtdDisponivel}) não pode ser maior que Qtd. Total ({f.qtdTotal}).
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
         <Btn onClick={onClose} variant="ghost" t={t}>Cancelar</Btn>
-        <Btn onClick={() => onSave(item ? f : { ...f, qtdDisponivel: f.qtdTotal })} variant="primary" t={t} disabled={!f.nome.trim()}>Salvar Item</Btn>
+        <Btn onClick={() => onSave(item ? f : { ...f, qtdDisponivel: f.qtdTotal })} variant="primary" t={t} disabled={!f.nome.trim() || (item && f.qtdDisponivel > f.qtdTotal)}>Salvar Item</Btn>
       </div>
     </div>
   );

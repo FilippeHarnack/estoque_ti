@@ -20,8 +20,8 @@ export default function MovimentacoesPage() {
 
   const getOperador = (username) => usuarios.find((u) => u.usuario === username) || null;
 
-  const totalEntradas = historico.filter((h) => h.tipo === "entrada").reduce((s, h) => s + h.qty, 0);
-  const totalSaidas   = historico.filter((h) => h.tipo === "saida").reduce((s, h)   => s + h.qty, 0);
+  const totalEntradas = historico.filter((h) => h.tipo === "entrada" || h.tipo === "devolucao" || h.tipo === "ajuste" || h.tipo === "retorno").reduce((s, h) => s + h.qty, 0);
+  const totalSaidas   = historico.filter((h) => h.tipo === "saida").reduce((s, h) => s + h.qty, 0);
 
   const headerActions = null;
 
@@ -58,14 +58,14 @@ export default function MovimentacoesPage() {
                   color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : r.tipo === "transferencia" ? "#F97316" : t.danger,
                   background: r.tipo === "entrada" ? t.successBg : r.tipo === "ajuste" ? "#F59E0B22" : r.tipo === "devolucao" ? "#60A5FA22" : r.tipo === "transferencia" ? "#F9731622" : t.dangerBg,
                   padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : r.tipo === "ajuste" ? faClipboardList : r.tipo === "devolucao" ? faRotateLeft : r.tipo === "transferencia" ? faArrowRightArrowLeft : faArrowUp} />
-                  {r.tipo === "entrada" ? "Entrada" : r.tipo === "ajuste" ? "Ajuste" : r.tipo === "devolucao" ? "Devolução" : r.tipo === "transferencia" ? "Transferência" : "Saída"}
+                  <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : r.tipo === "ajuste" ? faClipboardList : r.tipo === "devolucao" ? faRotateLeft : r.tipo === "retorno" ? faRotateLeft : r.tipo === "transferencia" ? faArrowRightArrowLeft : faArrowUp} />
+                  {r.tipo === "entrada" ? "Entrada" : r.tipo === "ajuste" ? "Ajuste" : r.tipo === "devolucao" ? "Devolução" : r.tipo === "retorno" ? "Retorno" : r.tipo === "transferencia" ? "Transferência" : "Saída"}
                 </span>
               )},
               { label: "Item",       render: (r) => <div><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.itemNome}</div><div style={{ fontSize: 11, color: t.textFaint }}>{r.categoria || "—"}</div></div> },
               { label: "Nº Série",   render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.serial || "—"}</span> },
               { label: "Patrimônio", render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.patrimonio || "—"}</span> },
-              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: r.tipo === "entrada" ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : r.tipo === "transferencia" ? "#F97316" : t.danger }}>{r.tipo === "entrada" ? "+" : r.tipo === "ajuste" ? "~" : r.tipo === "devolucao" ? "↩" : r.tipo === "transferencia" ? "⇄" : "-"}{r.qty}</span> },
+              { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 800, fontSize: 15, color: (r.tipo === "entrada" || r.tipo === "retorno") ? t.success : r.tipo === "ajuste" ? "#F59E0B" : r.tipo === "devolucao" ? "#60A5FA" : r.tipo === "transferencia" ? "#F97316" : t.danger }}>{(r.tipo === "entrada" || r.tipo === "retorno") ? "+" : r.tipo === "ajuste" ? "~" : r.tipo === "devolucao" ? "↩" : r.tipo === "transferencia" ? "⇄" : "-"}{r.qty}</span> },
               { label: "Total",      render: (r) => <span style={{ fontWeight: 600, color: t.text }}>{r.qtdTotal ?? "—"}</span> },
               { label: "Disponível", render: (r) => <span style={{ fontWeight: 600, color: r.qtdDisponivel === 0 ? t.danger : t.success }}>{r.qtdDisponivel ?? "—"}</span> },
               {
@@ -98,6 +98,20 @@ export default function MovimentacoesPage() {
                     );
                   }
 
+                  if (r.tipo === "retorno") {
+                    const arrowIdx = (r.obs || "").indexOf(" → ");
+                    const de = arrowIdx >= 0 ? r.obs.slice(0, arrowIdx).trim() : r.funcionario || "—";
+                    return (
+                      <div>
+                        <div style={{ fontSize: 11, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                          <FontAwesomeIcon icon={faRotateLeft} /> Devolvido por
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#60A5FA" }}>{de}</div>
+                        {temDepto && <div style={{ fontSize: 11, color: t.textFaint }}>{r.depto}</div>}
+                      </div>
+                    );
+                  }
+
                   if (r.tipo === "devolucao") {
                     return (
                       <div>
@@ -117,12 +131,13 @@ export default function MovimentacoesPage() {
                     return (
                       <div>
                         <div style={{ fontSize: 11, color: t.textFaint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                          <FontAwesomeIcon icon={faArrowDown} /> Recebido de
+                          <FontAwesomeIcon icon={temFunc ? faArrowUp : faArrowDown} /> {temFunc ? "Dado para" : "Entrada em estoque"}
                         </div>
                         {temFunc
-                          ? <div style={{ fontSize: 13, fontWeight: 600, color: t.success }}>{r.funcionario}</div>
-                          : <div style={{ fontSize: 12, color: t.textFaint, fontStyle: "italic" }}>Não informado</div>
+                          ? <div style={{ fontSize: 13, fontWeight: 600, color: "#60A5FA" }}>{r.funcionario}</div>
+                          : <div style={{ fontSize: 12, color: t.textFaint, fontStyle: "italic" }}>Estoque</div>
                         }
+                        {temDepto && <div style={{ fontSize: 11, color: t.textFaint }}>{r.depto}</div>}
                       </div>
                     );
                   }

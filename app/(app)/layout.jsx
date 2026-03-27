@@ -257,14 +257,7 @@ function LandingAnimation({ unidade, erroDb }) {
             </g>
           ))}
 
-          {/* Luzes de aproximação (antes da pista) */}
-          {[55,40,25,10].map((x, i) => (
-            <circle key={i} cx={x} cy="148" r="2.5" fill="#fff">
-              <animate attributeName="opacity" values="1;0.1;1" dur="0.9s" begin={`${i * 0.22}s`} repeatCount="indefinite" />
-            </circle>
-          ))}
-
-          {/* Glow na zona de toque */}
+{/* Glow na zona de toque */}
           <ellipse cx="200" cy="148" rx="90" ry="10" fill={info.color} opacity="0.12">
             <animate attributeName="opacity" values="0.07;0.22;0.07" dur="2.5s" repeatCount="indefinite" />
           </ellipse>
@@ -314,6 +307,9 @@ function AppShell({ children }) {
   const [overlayExiting, setOverlayExiting] = useState(false);
   const [currentAlvo, setCurrentAlvo]       = useState(null);
   const [currentOrigem, setCurrentOrigem]   = useState(null);
+  const [mounted, setMounted]               = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (trocandoFilial) {
@@ -332,8 +328,8 @@ function AppShell({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trocandoFilial]);
 
-  if (carregando && !trocandoFilial) {
-    if (unidade) return <LandingAnimation unidade={unidade} erroDb={erroDb} />;
+  if (!mounted || (carregando && !trocandoFilial)) {
+    if (mounted && unidade) return <LandingAnimation unidade={unidade} erroDb={erroDb} />;
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0F172A", flexDirection: "column", gap: 16, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
         <div style={{ fontSize: 36, color: "#6366F1" }}>

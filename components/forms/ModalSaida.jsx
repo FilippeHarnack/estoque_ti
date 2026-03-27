@@ -38,10 +38,14 @@ function ListaItensFuncionario({ itens, funcSel, onDevolucao, t, devolvendo }) {
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {item.nome}
             </div>
-            <div style={{ fontSize: 11, color: t.textFaint, marginTop: 1 }}>
-              {item.categoria}
-              {item.serial && item.serial !== "—" && <> · <span style={{ fontFamily: "monospace" }}>{item.serial}</span></>}
-              {item.patrimonio && item.patrimonio !== "—" && <> · Pat. {item.patrimonio}</>}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>{item.categoria}</span>
+              {item.serial && item.serial !== "—" && (
+                <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {item.serial}</span>
+              )}
+              {item.patrimonio && item.patrimonio !== "—" && (
+                <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {item.patrimonio}</span>
+              )}
             </div>
           </div>
           <button
@@ -148,17 +152,25 @@ function FormNovaSaida({ itens, funcFinal, depto, setDepto, onSave, onClose, t }
 
       {/* Preview */}
       {itemSel && (
-        <div style={{ background: t.dangerBg, border: `1px solid ${t.danger}44`, borderRadius: 12, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
+        <div style={{ background: t.dangerBg, border: `1px solid ${t.danger}44`, borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.danger, display: "flex", alignItems: "center", gap: 6 }}>
               {CAT_ICONS[itemSel.categoria] && <FontAwesomeIcon icon={CAT_ICONS[itemSel.categoria]} />}
               {itemSel.nome}
             </div>
-            <div style={{ fontSize: 11, color: t.textFaint, marginTop: 2 }}>
-              Disponível: {itemSel.qtdDisponivel} · Para: <strong>{funcFinal}</strong>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Para: <strong style={{ color: t.text }}>{funcFinal}</strong></span>
+              <span style={{ fontSize: 11, color: t.textFaint }}>·</span>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Disp.: <strong style={{ color: t.success }}>{itemSel.qtdDisponivel}</strong></span>
+              {itemSel.serial && itemSel.serial !== "—" && (
+                <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {itemSel.serial}</span>
+              )}
+              {itemSel.patrimonio && itemSel.patrimonio !== "—" && (
+                <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {itemSel.patrimonio}</span>
+              )}
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: t.textFaint }}>Após saída</div>
             <div style={{ fontSize: 17, fontWeight: 800, color: t.danger }}>−{qty} → {Math.max(0, itemSel.qtdDisponivel - qty)}</div>
           </div>

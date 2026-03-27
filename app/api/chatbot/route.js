@@ -14,8 +14,10 @@ function hoje() {
 }
 
 function autenticar(req) {
-  const secret = req.headers.get("x-chatbot-secret");
-  return secret === process.env.CHATBOT_SECRET;
+  const secret = process.env.CHATBOT_SECRET;
+  // Rejeita se a variável de ambiente não estiver configurada
+  if (!secret) return false;
+  return req.headers.get("x-chatbot-secret") === secret;
 }
 
 // ── POST /api/chatbot ─────────────────────────────────────────────────────────

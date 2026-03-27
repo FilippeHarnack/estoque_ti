@@ -112,7 +112,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{i.nome}</div>
-                  <div style={{ fontSize: 11, color: t.textFaint }}>{i.marca} · {i.modelo}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 2 }}>
+                    <span style={{ fontSize: 11, color: t.textMuted }}>{i.categoria}</span>
+                    {i.serial && i.serial !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {i.serial}</span>}
+                    {i.patrimonio && i.patrimonio !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {i.patrimonio}</span>}
+                  </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 11, color: t.textFaint }}>Disp.</div>
@@ -136,7 +140,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
               {CAT_ICONS[itemSel.categoria] && <FontAwesomeIcon icon={CAT_ICONS[itemSel.categoria]} />}
               {itemSel.nome}
             </div>
-            <div style={{ fontSize: 11, color: t.textFaint }}>Atual: {itemSel.qtdDisponivel}/{itemSel.qtdTotal}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Atual: <strong style={{ color: t.success }}>{itemSel.qtdDisponivel}/{itemSel.qtdTotal}</strong></span>
+              {itemSel.serial && itemSel.serial !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {itemSel.serial}</span>}
+              {itemSel.patrimonio && itemSel.patrimonio !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {itemSel.patrimonio}</span>}
+            </div>
           </div>
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: t.textFaint }}>Após entrada</div><div style={{ fontSize: 17, fontWeight: 800, color: t.success }}>+{qty} → {itemSel.qtdDisponivel + qty}</div></div>
         </div>
@@ -148,7 +156,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
               {CAT_ICONS[itemSel.categoria] && <FontAwesomeIcon icon={CAT_ICONS[itemSel.categoria]} />}
               {itemSel.nome}
             </div>
-            <div style={{ fontSize: 11, color: t.textFaint }}>Entrega direta para <strong>{func}</strong> · Disp.: {itemSel.qtdDisponivel}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Para: <strong style={{ color: t.text }}>{func}</strong> · Disp.: <strong style={{ color: t.success }}>{itemSel.qtdDisponivel}</strong></span>
+              {itemSel.serial && itemSel.serial !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {itemSel.serial}</span>}
+              {itemSel.patrimonio && itemSel.patrimonio !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {itemSel.patrimonio}</span>}
+            </div>
           </div>
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: t.textFaint }}>Após entrega</div><div style={{ fontSize: 17, fontWeight: 800, color: t.danger }}>−{qty} → {Math.max(0, itemSel.qtdDisponivel - qty)}</div></div>
         </div>
@@ -160,7 +172,11 @@ export default function ModalMovimento({ tipo, itemInicial, itens, onSave, onClo
               {CAT_ICONS[itemSel.categoria] && <FontAwesomeIcon icon={CAT_ICONS[itemSel.categoria]} />}
               {itemSel.nome}
             </div>
-            <div style={{ fontSize: 11, color: t.textFaint }}>Disponível: {itemSel.qtdDisponivel} · Total: {itemSel.qtdTotal}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Disp.: <strong style={{ color: t.success }}>{itemSel.qtdDisponivel}</strong> · Total: <strong style={{ color: t.text }}>{itemSel.qtdTotal}</strong></span>
+              {itemSel.serial && itemSel.serial !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.textMuted, background: t.border, borderRadius: 4, padding: "1px 6px" }}>S/N: {itemSel.serial}</span>}
+              {itemSel.patrimonio && itemSel.patrimonio !== "—" && <span style={{ fontSize: 10, fontFamily: "monospace", color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}55`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAT: {itemSel.patrimonio}</span>}
+            </div>
           </div>
           <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: t.textFaint }}>Após saída</div><div style={{ fontSize: 17, fontWeight: 800, color: t.danger }}>−{qty} → {Math.max(0, itemSel.qtdDisponivel - qty)}</div></div>
         </div>

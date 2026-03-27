@@ -64,7 +64,19 @@ export async function processarMovimento({ db, unidade, tipo, itemSel, itens, no
     funcionario: func || null, departamento: depto || null,
     operador, obs: obs || null, unidade,
   };
-  const { data: movData } = await db.from("movimentacoes").insert([movP]).select().single();
+  const { data: movData, error: movErr } = await db.from("movimentacoes").insert([movP]).select().single();
+
+  // Rollback do equipamento se o registro de movimentação falhou
+  if (movErr && itemExistente) {
+    await db.from("equipamentos").update({
+      qtd_total:      itemExistente.qtdTotal,
+      qtd_disponivel: itemExistente.qtdDisponivel,
+      status:         itemExistente.status,
+      funcionario:    itemExistente.funcionario,
+      departamento:   itemExistente.departamento,
+    }).eq("id", itemSel.id).catch(() => {});
+    throw new Error(movErr.message || JSON.stringify(movErr));
+  }
 
   return { novoEquip, novaMovimentacao: movData ? mapMov(movData) : null };
 }
@@ -74,6 +86,9 @@ export async function processarMovimento({ db, unidade, tipo, itemSel, itens, no
  */
 export async function processarDevolucao({ db, item, qty, obs, operador }) {
   const qtyReg = qty || 1;
+  // Calcula nova quantidade disponível sem ultrapassar o total
+  const novaDisp = Math.min(item.qtdDisponivel + qtyReg, item.qtdTotal);
+  const devolucaoTotal = novaDisp >= item.qtdTotal;
 
   const obsFinal = `[devolucao] ${obs || `Devolvido por ${item.funcionario || "—"}`}`;
   const movP = {
@@ -86,7 +101,7 @@ export async function processarDevolucao({ db, item, qty, obs, operador }) {
     categoria: item.categoria || "—",
     qty: qtyReg,
     qtd_total: item.qtdTotal,
-    qtd_disponivel: item.qtdTotal,
+    qtd_disponivel: novaDisp,
     funcionario: item.funcionario || null,
     departamento: item.departamento || null,
     operador,
@@ -97,15 +112,52 @@ export async function processarDevolucao({ db, item, qty, obs, operador }) {
   const { data: movData, error: movErr } = await db.from("movimentacoes").insert([movP]).select().single();
   if (movErr) throw new Error(movErr.message || JSON.stringify(movErr));
 
-  const { error: delErr } = await db.from("equipamentos").delete().eq("id", item.id);
-  if (delErr) {
+  if (devolucaoTotal) {
+    // Todos os itens devolvidos: tenta remover o registro do equipamento
+    const { error: delErr } = await db.from("equipamentos").delete().eq("id", item.id);
+    if (delErr) {
+      // Fallback: atualiza o registro marcando como disponível
+      const { error: updErr } = await db.from("equipamentos")
+        .update({ status: "Disponível", funcionario: "Estoque", departamento: "—", qtd_disponivel: novaDisp })
+        .eq("id", item.id);
+      if (updErr) throw new Error(updErr.message || JSON.stringify(updErr));
+    }
+    return { itemDeletado: !delErr, itemId: item.id, novaMovimentacao: movData ? mapMov(movData) : null };
+  } else {
+    // Devolução parcial: apenas incrementa qtd_disponivel
     const { error: updErr } = await db.from("equipamentos")
-      .update({ status: "Disponível", funcionario: "—", departamento: "—" })
+      .update({ qtd_disponivel: novaDisp })
       .eq("id", item.id);
     if (updErr) throw new Error(updErr.message || JSON.stringify(updErr));
+    return { itemDeletado: false, itemId: item.id, novaMovimentacao: movData ? mapMov(movData) : null };
   }
+}
 
-  return { itemDeletado: !delErr, itemId: item.id, novaMovimentacao: movData ? mapMov(movData) : null };
+/**
+ * Registra entrada no momento do cadastro de um novo equipamento no estoque.
+ */
+export async function registrarEntradaCadastro({ db, item, qty, operador }) {
+  const temFunc = item.funcionario && item.funcionario !== "—";
+  const movP = {
+    data: hoje(),
+    tipo: "entrada",
+    equipamento_id: item.id,
+    item_nome: item.nome,
+    serial: item.serial || "—",
+    patrimonio: item.patrimonio || "—",
+    categoria: item.categoria || "—",
+    qty,
+    qtd_total: item.qtdTotal,
+    qtd_disponivel: item.qtdDisponivel,
+    funcionario: temFunc ? item.funcionario : null,
+    departamento: temFunc && item.departamento && item.departamento !== "—" ? item.departamento : null,
+    operador,
+    obs: "Cadastro de novo equipamento",
+    unidade: item.unidade,
+  };
+  const { data, error } = await db.from("movimentacoes").insert([movP]).select().single();
+  if (error) throw error;
+  return mapMov(data);
 }
 
 /**
@@ -152,7 +204,15 @@ export async function processarTransferencia({ db, item, novoFuncionario, novoDe
     operador, obs: obsFinal, unidade: item.unidade,
   };
   const { data: movData, error: movErr } = await db.from("movimentacoes").insert([movP]).select().single();
-  if (movErr) throw new Error(movErr.message || JSON.stringify(movErr));
+  if (movErr) {
+    // Rollback: restaura funcionário/departamento originais
+    await db.from("equipamentos").update({
+      funcionario:  item.funcionario,
+      departamento: item.departamento,
+      status:       item.status,
+    }).eq("id", item.id).catch(() => {});
+    throw new Error(movErr.message || JSON.stringify(movErr));
+  }
 
   return { novoEquip: equip ? mapEquip(equip) : null, novaMovimentacao: movData ? mapMov(movData) : null };
 }

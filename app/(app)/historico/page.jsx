@@ -22,11 +22,13 @@ export default function HistoricoPage() {
 
   const histFiltrado = useMemo(() => {
     const agora = new Date(); const hj = hoje();
-    return historico.filter((h) => {
-      if (periodo === "hoje") return h.data === hj;
-      if (periodo === "mes")  { const d = new Date(h.data); return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear(); }
-      return true;
-    });
+    return historico
+      .filter((h) => {
+        if (periodo === "hoje") return h.data === hj;
+        if (periodo === "mes")  { const d = new Date(h.data + "T12:00:00"); return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear(); }
+        return true;
+      })
+      .sort((a, b) => (b.data > a.data ? 1 : b.data < a.data ? -1 : 0));
   }, [historico, periodo]);
 
   // Ordenar itens: os com movimentação mais recente aparecem primeiro
@@ -66,8 +68,8 @@ export default function HistoricoPage() {
                   </span>
                   <span style={{ fontWeight: 700, color: t.text, fontSize: 14 }}>{item.nome}</span>
                   <StatusBadge status={item.status} dark={dark} />
-                  {item.serial && item.serial !== "—" && <span style={{ fontSize: 11, color: t.textFaint, background: t.border, borderRadius: 6, padding: "2px 8px", fontFamily: "monospace" }}>S/N: {item.serial}</span>}
-                  {item.patrimonio && item.patrimonio !== "—" && <span style={{ fontSize: 11, color: t.textFaint, background: t.border, borderRadius: 6, padding: "2px 8px", fontFamily: "monospace" }}>PAT: {item.patrimonio}</span>}
+                  {item.serial && item.serial !== "—" && <span style={{ fontSize: 11, color: t.textMuted, background: t.border, borderRadius: 6, padding: "2px 8px", fontFamily: "monospace" }}>S/N: {item.serial}</span>}
+                  {item.patrimonio && item.patrimonio !== "—" && <span style={{ fontSize: 11, color: t.accent, background: `${t.accent}18`, border: `1px solid ${t.accent}66`, borderRadius: 6, padding: "2px 8px", fontFamily: "monospace", fontWeight: 700 }}>PAT: {item.patrimonio}</span>}
                   <span style={{ marginLeft: "auto", fontSize: 12, color: t.textFaint }}>{hItem.length} registro{hItem.length !== 1 ? "s" : ""}</span>
                 </div>
                 <div style={{ padding: "8px 0" }}>
@@ -79,20 +81,38 @@ export default function HistoricoPage() {
                     return (
                       <div key={h.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${t.border}` }}>
 
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, flexShrink: 0, marginTop: 5 }} />
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: (h.tipo === "entrada" || h.tipo === "retorno") ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, flexShrink: 0, marginTop: 5 }} />
 
                         <span style={{ fontSize: 12, color: t.textFaint, width: 88, flexShrink: 0, paddingTop: 2 }}>{h.data}</span>
 
-                        <span style={{ fontSize: 13, fontWeight: 700, color: h.tipo === "entrada" ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
-                          {h.tipo === "entrada" ? "+" : h.tipo === "ajuste" ? "~" : h.tipo === "devolucao" ? "↩" : h.tipo === "transferencia" ? "⇄" : "-"}{h.qty} un.
+                        <span style={{ fontSize: 13, fontWeight: 700, color: (h.tipo === "entrada" || h.tipo === "retorno") ? t.success : h.tipo === "ajuste" ? "#F59E0B" : h.tipo === "devolucao" ? "#60A5FA" : h.tipo === "transferencia" ? "#F97316" : t.danger, width: 60, flexShrink: 0, paddingTop: 2 }}>
+                          {(h.tipo === "entrada" || h.tipo === "retorno") ? "+" : h.tipo === "ajuste" ? "~" : h.tipo === "devolucao" ? "↩" : h.tipo === "transferencia" ? "⇄" : "-"}{h.qty} un.
                         </span>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: t.text, fontWeight: 500, marginBottom: 4 }}>
-                            {h.tipo === "transferencia" ? (() => {
-                              const partes = h.obs?.split(" → ") || [];
-                              const de  = partes[0]?.trim() || "—";
-                              const para = partes[1]?.trim() || h.funcionario || "—";
+                            {h.tipo === "retorno" ? (() => {
+                              const arrowIdx = (h.obs || "").indexOf(" → ");
+                              const de = arrowIdx >= 0 ? h.obs.slice(0, arrowIdx).trim() : h.funcionario || "—";
+                              const afterArrow = arrowIdx >= 0 ? h.obs.slice(arrowIdx + 3) : "";
+                              const dotIdx = afterArrow.indexOf(" · ");
+                              const motivo = dotIdx >= 0 ? afterArrow.slice(dotIdx + 3).trim() : "";
+                              return (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  <FontAwesomeIcon icon={faRotateLeft} style={{ color: t.success, fontSize: 12 }} />
+                                  <strong style={{ color: "#60A5FA" }}>{de}</strong>
+                                  <span style={{ color: t.textMuted }}>devolveu ao estoque</span>
+                                  {temDepto && <span style={{ color: t.textMuted, fontWeight: 600 }}>· {h.depto}</span>}
+                                </span>
+                              );
+                            })() : h.tipo === "transferencia" ? (() => {
+                              const arrowIdx = (h.obs || "").indexOf(" → ");
+                              const de = arrowIdx >= 0 ? h.obs.slice(0, arrowIdx).trim() : "—";
+                              const afterArrow = arrowIdx >= 0 ? h.obs.slice(arrowIdx + 3) : h.funcionario || "—";
+                              const dotIdx = afterArrow.indexOf(" · ");
+                              const paraRaw = dotIdx >= 0 ? afterArrow.slice(0, dotIdx).trim() : afterArrow;
+                              const para   = /^estoque/i.test(paraRaw) ? "Estoque" : paraRaw;
+                              const motivo = dotIdx >= 0 ? afterArrow.slice(dotIdx + 3).trim() : "";
                               return (
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                   <FontAwesomeIcon icon={faArrowRightArrowLeft} style={{ color: "#F97316", fontSize: 12 }} />
@@ -100,22 +120,22 @@ export default function HistoricoPage() {
                                   <strong style={{ color: t.danger }}>{de}</strong>
                                   <span style={{ color: "#F97316" }}>→</span>
                                   <strong style={{ color: t.success }}>{para}</strong>
-                                  {temDepto && <span style={{ color: t.textFaint, fontWeight: 400 }}>· {h.depto}</span>}
+                                  {temDepto && <span style={{ color: t.textMuted, fontWeight: 600 }}>· {h.depto}</span>}
                                 </span>
                               );
                             })() : h.tipo === "ajuste" ? (
                               <span style={{ color: "#F59E0B" }}>Ajuste manual de estoque</span>
                             ) : h.tipo === "devolucao" ? (
                               temFunc
-                                ? <span>Devolvido por <strong style={{ color: "#60A5FA" }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textFaint, fontWeight: 400 }}> · {h.depto}</span>}</span>
+                                ? <span>Devolvido por <strong style={{ color: "#60A5FA" }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textMuted, fontWeight: 600 }}> · {h.depto}</span>}</span>
                                 : <span style={{ color: "#60A5FA" }}>Devolvido ao estoque</span>
                             ) : h.tipo === "entrada" ? (
                               temFunc
-                                ? <span>Entrada recebida de <strong style={{ color: t.success }}>{h.funcionario}</strong></span>
+                                ? <span>Cadastrado — dado para <strong style={{ color: "#60A5FA" }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textMuted, fontWeight: 600 }}> · {h.depto}</span>}</span>
                                 : <span style={{ color: t.textMuted }}>Entrada em estoque</span>
                             ) : (
                               temFunc
-                                ? <span>Saído para <strong style={{ color: t.danger }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textFaint, fontWeight: 400 }}> · {h.depto}</span>}</span>
+                                ? <span>Saído para <strong style={{ color: t.danger }}>{h.funcionario}</strong>{temDepto && <span style={{ color: t.textMuted, fontWeight: 600 }}> · {h.depto}</span>}</span>
                                 : <span style={{ color: t.textFaint }}>Saída — destinatário não informado</span>
                             )}
                           </div>
@@ -128,14 +148,30 @@ export default function HistoricoPage() {
                               {badge.icon && <FontAwesomeIcon icon={badge.icon} />}
                               {badge.label}
                             </span>
-                            {h.obs && h.tipo !== "transferencia" && <span style={{ fontSize: 11, color: t.textFaint, fontStyle: "italic" }}>· {h.obs}</span>}
                           </div>
+                          {(() => {
+                            if (!h.obs) return null;
+                            let texto = h.obs;
+                            if (h.tipo === "transferencia") {
+                              const arrowIdx = h.obs.indexOf(" → ");
+                              const afterArrow = arrowIdx >= 0 ? h.obs.slice(arrowIdx + 3) : h.obs;
+                              const dotIdx = afterArrow.indexOf(" · ");
+                              texto = dotIdx >= 0 ? afterArrow.slice(dotIdx + 3).trim() : "";
+                            }
+                            if (h.tipo === "retorno") {
+                              const afterArrow = h.obs.indexOf(" → ") >= 0 ? h.obs.slice(h.obs.indexOf(" → ") + 3) : h.obs;
+                              const dotIdx = afterArrow.indexOf(" · ");
+                              texto = dotIdx >= 0 ? afterArrow.slice(dotIdx + 3).trim() : "";
+                            }
+                            if (!texto) return null;
+                            return (
+                              <div style={{ marginTop: 5, fontSize: 11, fontWeight: 600, color: t.text, background: t.bg, border: `1px solid ${t.border}`, borderLeft: `3px solid #A78BFA`, padding: "3px 10px", borderRadius: 6, display: "inline-block", maxWidth: "100%" }}>
+                                {texto}
+                              </div>
+                            );
+                          })()}
                         </div>
 
-                        <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", alignItems: "center" }}>
-                          {h.serial && h.serial !== "—"         && <span style={{ fontSize: 10, color: t.textFaint, fontFamily: "monospace", background: t.bg, borderRadius: 5, padding: "1px 6px", border: `1px solid ${t.border}` }}>S/N {h.serial}</span>}
-                          {h.patrimonio && h.patrimonio !== "—" && <span style={{ fontSize: 10, color: t.accent,    fontFamily: "monospace", background: t.bg, borderRadius: 5, padding: "1px 6px", border: `1px solid ${t.accent}44` }}>PAT {h.patrimonio}</span>}
-                        </div>
 
                       </div>
                     );

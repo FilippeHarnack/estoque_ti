@@ -343,7 +343,7 @@ export default function EquipamentosPage() {
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: t.text }}>{manutModal.item.nome}</div>
                 <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>
-                  {manutModal.item.qtdTotal} unidade{manutModal.item.qtdTotal !== 1 ? "s" : ""} com {manutModal.item.funcionario !== "—" ? manutModal.item.funcionario : "estoque"}
+                  {manutModal.item.qtdDisponivel} disponível(is) · {manutModal.item.qtdTotal} total
                 </div>
               </div>
             </div>
@@ -360,33 +360,33 @@ export default function EquipamentosPage() {
                   −
                 </button>
                 <input
-                  type="number" min={1} max={manutModal.item.qtdTotal} value={manutQty}
+                  type="number" min={1} max={manutModal.item.qtdDisponivel} value={manutQty}
                   onChange={(e) => {
                     const v = parseInt(e.target.value) || 1;
-                    setManutQty(Math.max(1, Math.min(manutModal.item.qtdTotal, v)));
+                    setManutQty(Math.max(1, Math.min(manutModal.item.qtdDisponivel, v)));
                   }}
                   style={{ width: 70, textAlign: "center", padding: "8px 10px", borderRadius: 8, border: `1.5px solid #F59E0B`, background: t.bg, color: t.text, fontSize: 18, fontWeight: 700, fontFamily: "inherit", outline: "none" }}
                 />
                 <button
-                  onClick={() => setManutQty((q) => Math.min(manutModal.item.qtdTotal, q + 1))}
+                  onClick={() => setManutQty((q) => Math.min(manutModal.item.qtdDisponivel, q + 1))}
                   style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${t.borderMed}`, background: t.surface, color: t.text, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   +
                 </button>
                 <span style={{ fontSize: 13, color: t.textFaint }}>
-                  de {manutModal.item.qtdTotal} total
+                  de {manutModal.item.qtdDisponivel} disponível
                 </span>
               </div>
 
               {/* Preview */}
               <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "#F59E0B0D", border: "1px solid #F59E0B33", fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>
-                {manutQty < manutModal.item.qtdTotal ? (
+                {manutQty < manutModal.item.qtdDisponivel ? (
                   <>
                     <strong style={{ color: "#F59E0B" }}>{manutQty}</strong> unidade{manutQty !== 1 ? "s" : ""} → <strong>Manutenção</strong>
                     <br />
-                    <strong style={{ color: t.text }}>{manutModal.item.qtdTotal - manutQty}</strong> unidade{manutModal.item.qtdTotal - manutQty !== 1 ? "s" : ""} → permanecem com {manutModal.item.funcionario !== "—" ? manutModal.item.funcionario : "estoque"}
+                    <strong style={{ color: t.text }}>{manutModal.item.qtdDisponivel - manutQty}</strong> disponível(is) · {manutModal.item.qtdTotal - manutQty} total → permanecem
                   </>
                 ) : (
-                  <>Todas as <strong style={{ color: "#F59E0B" }}>{manutQty}</strong> unidades → <strong>Manutenção</strong></>
+                  <>Todas as <strong style={{ color: "#F59E0B" }}>{manutQty}</strong> unidades disponíveis → <strong>Manutenção</strong></>
                 )}
               </div>
             </div>

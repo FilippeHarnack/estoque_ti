@@ -1,9 +1,10 @@
 "use client";
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase, getDb, getEdgeFnUrl } from "@/services/supabase";
 import { buildTheme } from "@/lib/theme";
+import { mapUsuario } from "@/lib/mappers";
 import { getAllEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento, buildEquipPayload, splitEquipamentoManutencao } from "@/services/equipmentService";
-import { getAllMovimentos, processarMovimento, processarDevolucao, processarTransferencia, registrarAjusteManual, registrarSaidaCadastro } from "@/services/movementService";
+import { getAllMovimentos, processarMovimento, processarDevolucao, processarTransferencia, registrarAjusteManual, registrarSaidaCadastro, registrarEntradaCadastro } from "@/services/movementService";
 import { getAllUsuarios, updateLastLogin, renameUsuario, toggleUsuario, resetUserPassword, createUsuario, changePassword, uploadAvatar } from "@/services/userService";
 import { getAllMarcas, createMarca, deleteMarca } from "@/services/marcasService";
 
@@ -37,6 +38,8 @@ export function AppProvider({ children }) {
   const edgeFnUrl = useMemo(() => getEdgeFnUrl(unidade), [unidade]);
 
   const [sessao, setSessao]           = useState(null);
+  const sessaoRef = useRef(null);
+  useEffect(() => { sessaoRef.current = sessao; }, [sessao]);
   const [authUser, setAuthUser]       = useState(null);
   const [authNome, setAuthNome]       = useState("");
   const [carregando, setCarregando]   = useState(true);
@@ -50,9 +53,10 @@ export function AppProvider({ children }) {
   const [usuarios, setUsuarios]   = useState([]);
   const [marcas, setMarcas]       = useState([]);
 
+  // Fallback seguro: perfil mínimo (viewer) — nunca concede acesso elevado por falha de DB
   const sessaoFallback = useCallback((authUserObj) => ({
     id: null, authId: authUserObj.id, usuario: authUserObj.email,
-    nome: authUserObj.email, perfil: "super_admin", avatar: "bolt",
+    nome: authUserObj.email, perfil: "viewer", avatar: "user",
     ativo: true, email: authUserObj.email, ultimoLogin: new Date().toISOString(),
   }), []);
 
@@ -72,7 +76,44 @@ export function AppProvider({ children }) {
       setUsuarios(usrs);
       setMarcas(mrcs);
 
-      const perfil = usrs.find((u) => u.authId === authUserObj.id);
+      let perfil = usrs.find((u) => u.authId === authUserObj.id);
+      // Fallback 1: busca por email na lista já carregada (auth_id pode estar desatualizado)
+      if (!perfil && authUserObj.email) {
+        const porEmail = usrs.find((u) => u.email && u.email.toLowerCase() === authUserObj.email.toLowerCase());
+        if (porEmail) {
+          perfil = porEmail;
+          // auth_id desatualizado — sincroniza para que a Edge Function reconheça o usuário
+          if (!porEmail.authId || porEmail.authId !== authUserObj.id) {
+            db.from("usuarios_app").update({ auth_id: authUserObj.id }).eq("id", porEmail.id).then(() => {}).catch(() => {});
+          }
+        }
+      }
+      // Fallback 2: RLS pode ter impedido listar todos — busca direta pelo auth_id
+      if (!perfil) {
+        const { data: perfilDireto } = await db
+          .from("usuarios_app")
+          .select("id,auth_id,usuario,nome,perfil,avatar,ativo,ultimo_login,email")
+          .eq("auth_id", authUserObj.id)
+          .maybeSingle()
+          .catch(() => ({ data: null }));
+        if (perfilDireto) perfil = mapUsuario(perfilDireto);
+      }
+      // Fallback 3: busca direta por email (auth_id pode estar null/errado no DB)
+      if (!perfil && authUserObj.email) {
+        const { data: perfilPorEmail } = await db
+          .from("usuarios_app")
+          .select("id,auth_id,usuario,nome,perfil,avatar,ativo,ultimo_login,email")
+          .ilike("email", authUserObj.email)
+          .maybeSingle()
+          .catch(() => ({ data: null }));
+        if (perfilPorEmail) {
+          perfil = mapUsuario(perfilPorEmail);
+          // Atualiza o auth_id no DB para que futuras buscas funcionem
+          if (!perfilPorEmail.auth_id || perfilPorEmail.auth_id !== authUserObj.id) {
+            db.from("usuarios_app").update({ auth_id: authUserObj.id }).eq("id", perfilPorEmail.id).then(() => {}).catch(() => {});
+          }
+        }
+      }
       if (perfil) {
         const agora = await updateLastLogin(db, authUserObj.id).catch(() => new Date().toISOString());
         setSessao({ ...perfil, email: perfil.email || authUserObj.email, ultimoLogin: agora });
@@ -128,8 +169,12 @@ export function AppProvider({ children }) {
       if (event === "SIGNED_IN" && session?.user) {
         setAuthUser(session.user);
         buscarNome(session.user.id);
-        if (unidade) carregarDados(session.user);
-        else setCarregando(false); // Logado mas sem unidade → mostra TelaUnidade
+        // Só recarrega dados em login genuíno (sessaoRef.current === null).
+        // Ignora eventos disparados por refresh de token ao voltar para a aba.
+        if (!sessaoRef.current) {
+          if (unidade) carregarDados(session.user);
+          else setCarregando(false);
+        }
       }
       if (event === "SIGNED_OUT") {
         setAuthUser(null); setSessao(null);
@@ -182,6 +227,10 @@ export function AppProvider({ children }) {
     } else {
       const created = await createEquipamento(db, unidade, payload);
       setItens((p) => [...p, created]);
+      const movEntrada = await registrarEntradaCadastro({
+        db, item: created, qty: form.qtdTotal, operador: sessao?.usuario,
+      });
+      if (movEntrada) setHistorico((p) => [movEntrada, ...p]);
       const qtdFora = form.qtdTotal - form.qtdDisponivel;
       if (form.funcionario && form.funcionario !== "—" && qtdFora > 0) {
         const mov = await registrarSaidaCadastro({
@@ -195,7 +244,7 @@ export function AppProvider({ children }) {
         if (mov) setHistorico((p) => [mov, ...p]);
       }
     }
-  }, [db, sessao]);
+  }, [db, unidade, sessao]);
 
   const handleDelete = useCallback(async (id) => {
     await deleteEquipamento(db, id);
@@ -217,18 +266,27 @@ export function AppProvider({ children }) {
       });
     }
     if (novaMovimentacao) setHistorico((p) => [novaMovimentacao, ...p]);
-  }, [db, itens, sessao]);
+  }, [db, unidade, itens, sessao]);
 
   const handleDevolucao = useCallback(async ({ item, qty, obs }) => {
     try {
+      const qtyReg = qty || 1;
       const { itemDeletado, itemId, novaMovimentacao } = await processarDevolucao({
-        db, item, qty, obs, operador: sessao?.usuario,
+        db, item, qty: qtyReg, obs, operador: sessao?.usuario,
       });
       if (itemDeletado) {
         setItens((p) => p.filter((a) => a.id !== itemId));
       } else {
+        const novaDisp = Math.min(item.qtdDisponivel + qtyReg, item.qtdTotal);
+        const devolucaoTotal = novaDisp >= item.qtdTotal;
         setItens((p) => p.map((a) => a.id === itemId
-          ? { ...a, status: "Disponível", funcionario: "—", departamento: "—", qtdDisponivel: a.qtdTotal }
+          ? {
+              ...a,
+              qtdDisponivel: novaDisp,
+              status:        devolucaoTotal ? "Disponível" : a.status,
+              funcionario:   devolucaoTotal ? "Estoque"     : a.funcionario,
+              departamento:  devolucaoTotal ? "—"          : a.departamento,
+            }
           : a
         ));
       }
@@ -271,6 +329,8 @@ export function AppProvider({ children }) {
     await changePassword(db, nova);
   }, [db]);
 
+  const PERFIS_VALIDOS = ["super_admin", "admin", "operador", "viewer"];
+
   const handleCriarUsuario = useCallback(async (form) => {
     const { email, usuario, nome, senha, perfil } = form;
     if (!email || !usuario || !nome || !senha) throw new Error("Preencha todos os campos.");
@@ -281,6 +341,7 @@ export function AppProvider({ children }) {
     if (senha.length < 8) throw new Error("Senha deve ter pelo menos 8 caracteres.");
     if (!/[A-Z]/.test(senha)) throw new Error("Senha deve conter ao menos uma maiúscula.");
     if (!/[0-9]/.test(senha)) throw new Error("Senha deve conter ao menos um número.");
+    if (!PERFIS_VALIDOS.includes(perfil)) throw new Error("Perfil inválido.");
     const avatar = perfil === "super_admin" ? "bolt" : perfil === "admin" ? "crown" : "user";
     const novoUser = await createUsuario(db, edgeFnUrl, { ...form, avatar });
     setUsuarios((prev) => [...prev, novoUser]);
@@ -311,7 +372,7 @@ export function AppProvider({ children }) {
       const novoStatus = item.funcionario && item.funcionario !== "—" ? "Em Uso" : "Disponível";
       const updated = await updateEquipamento(db, item.id, { status: novoStatus });
       setItens((p) => p.map((a) => (a.id === item.id ? updated : a)));
-    } else if (qty && qty < item.qtdTotal) {
+    } else if (qty && qty < item.qtdDisponivel) {
       const { updatedOriginal, createdManut } = await splitEquipamentoManutencao(db, item, qty);
       setItens((p) => [...p.map((a) => a.id === item.id ? updatedOriginal : a), createdManut]);
     } else {

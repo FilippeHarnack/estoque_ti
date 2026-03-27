@@ -166,8 +166,8 @@ export default function DashboardPage() {
     }
     return months.map((m) => {
       const movsMes = historico.filter((h) => h.data?.startsWith(m.key));
-      const entradas = movsMes.filter((h) => h.tipo === "entrada" || h.tipo === "devolucao").reduce((s, h) => s + (h.qty || 0), 0);
-      const saidas   = movsMes.filter((h) => h.tipo === "saida").reduce((s, h) => s + (h.qty || 0), 0);
+      const entradas = movsMes.filter((h) => h.tipo === "entrada" || h.tipo === "devolucao" || h.tipo === "ajuste").reduce((s, h) => s + (h.qty || 0), 0);
+      const saidas   = movsMes.filter((h) => h.tipo === "saida" || h.tipo === "transferencia").reduce((s, h) => s + (h.qty || 0), 0);
       return { ...m, entradas, saidas };
     });
   }, [historico]);
@@ -279,11 +279,13 @@ export default function DashboardPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {historico.slice(0, 7).map((h) => {
                   const isDev     = h.tipo === "devolucao";
-                  const isEntrada = h.tipo === "entrada" || isDev;
+                  const isRetorno = h.tipo === "retorno";
+                  const isTrans   = h.tipo === "transferencia";
+                  const isEntrada = h.tipo === "entrada" || isDev || isRetorno || h.tipo === "ajuste";
                   const isAjuste  = h.tipo === "ajuste";
-                  const cor   = isAjuste ? "#6366F1" : isEntrada ? "#10B981" : "#EF4444";
-                  const icon  = isAjuste ? faWrench : isEntrada ? faArrowDown : faArrowUp;
-                  const label = isDev ? "Devolução" : isAjuste ? "Ajuste" : isEntrada ? "Entrada" : "Saída";
+                  const cor   = isAjuste ? "#6366F1" : isTrans ? "#F97316" : isEntrada ? "#10B981" : "#EF4444";
+                  const icon  = isAjuste ? faWrench : isTrans ? faArrowUp : isEntrada ? faArrowDown : faArrowUp;
+                  const label = isDev ? "Devolução" : isRetorno ? "Retorno" : isTrans ? "Transferência" : isAjuste ? "Ajuste" : isEntrada ? "Entrada" : "Saída";
                   const func  = h.funcionario && h.funcionario !== "—" ? h.funcionario : null;
                   return (
                     <div key={h.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -295,7 +297,7 @@ export default function DashboardPage() {
                         <div style={{ fontSize: 11, fontWeight: 700, color: cor, marginTop: 2 }}>{label}</div>
                         {func && (
                           <div style={{ fontSize: 11, color: t.textFaint, marginTop: 1 }}>
-                            {isEntrada ? "Devolvido por" : "Para"}:{" "}
+                            {isDev || isRetorno ? "Devolvido por" : isTrans ? "Para" : isEntrada ? "Para" : "Para"}:{" "}
                             <span style={{ color: t.textMuted, fontWeight: 600 }}>{func}</span>
                           </div>
                         )}

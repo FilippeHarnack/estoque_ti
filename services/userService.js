@@ -6,7 +6,15 @@ export async function getAllUsuarios(db) {
     .select("id,auth_id,usuario,nome,perfil,avatar,ativo,ultimo_login,email")
     .order("id");
   if (error) throw error;
-  return data.map(mapUsuario);
+  const users = data.map(mapUsuario);
+  // Gera URLs assinadas frescas para avatares armazenados como paths de storage
+  await Promise.all(users.map(async (u) => {
+    if (u.avatar?.startsWith("avatars/")) {
+      const url = await getAvatarUrl(db, u.avatar).catch(() => null);
+      if (url) u.avatar = url;
+    }
+  }));
+  return users;
 }
 
 export async function updateLastLogin(db, authId) {
@@ -84,23 +92,33 @@ function resizeToBlob(file, size = 256) {
   });
 }
 
+const AVATAR_SIGNED_URL_TTL = 7 * 24 * 60 * 60; // 7 dias em segundos
+
 export async function uploadAvatar(db, authId, file) {
   const blob = await resizeToBlob(file, 256);
-  const path = `avatars/${authId}.jpg`;
+  const storagePath = `avatars/${authId}.jpg`;
 
   const { error: uploadError } = await db.storage
     .from("photos")
-    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+    .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
   if (uploadError) throw uploadError;
 
-  const { data, error: signError } = await db.storage.from("photos").createSignedUrl(path, 315360000);
-  if (signError) throw signError;
-  const url = data.signedUrl;
-
-  const { error: dbError } = await db.from("usuarios_app").update({ avatar: url }).eq("auth_id", authId);
+  // Salva o path no DB (não a URL assinada) para poder gerar URLs frescas depois
+  const { error: dbError } = await db.from("usuarios_app").update({ avatar: storagePath }).eq("auth_id", authId);
   if (dbError) throw dbError;
 
-  return url;
+  // Retorna URL assinada de curta duração apenas para exibição imediata
+  const { data, error: signError } = await db.storage.from("photos").createSignedUrl(storagePath, AVATAR_SIGNED_URL_TTL);
+  if (signError) throw signError;
+
+  return data.signedUrl;
+}
+
+export async function getAvatarUrl(db, storagePath) {
+  if (!storagePath || storagePath.startsWith("http") || storagePath.startsWith("data:")) return storagePath;
+  const { data, error } = await db.storage.from("photos").createSignedUrl(storagePath, AVATAR_SIGNED_URL_TTL);
+  if (error) return null;
+  return data.signedUrl;
 }
 
 export async function changePassword(db, novaSenha) {

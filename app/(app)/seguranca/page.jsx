@@ -8,8 +8,12 @@ import {
   faCircleCheck, faCircleXmark, faSpinner, faBolt, faCrown,
   faKey, faLock, faLockOpen, faUsers, faEnvelope, faScroll,
   faCircle, faBan, faPen, faCamera, faArrowDown, faArrowUp,
-  faTag, faPlus, faTrash,
+  faTag, faPlus, faTrash, faRotateLeft, faSliders, faShuffle,
 } from "@fortawesome/free-solid-svg-icons";
+
+const isEntrada = (tipo) => tipo === "entrada" || tipo === "devolucao" || tipo === "ajuste" || tipo === "retorno";
+const TIPO_LABELS = { entrada: "Entrada", saida: "Saída", devolucao: "Devolução", ajuste: "Ajuste", transferencia: "Transferência", retorno: "Retorno" };
+const TIPO_ICONS  = { entrada: faArrowDown, saida: faArrowUp, devolucao: faRotateLeft, ajuste: faSliders, transferencia: faShuffle, retorno: faRotateLeft };
 
 export default function SegurancaPage() {
   const { t, sessao, historico, usuarios, marcas, podeEditar, podeSuperAdmin, podeAdmin, handleToggleUsuario, handleResetUserPassword, handleRenomearUsuario, handleAlterarSenha, handleCriarUsuario, handleUploadAvatar, handleAddMarca, handleDeleteMarca } = useApp();
@@ -22,6 +26,7 @@ export default function SegurancaPage() {
   const [avatarError, setAvatarError]         = useState("");
   const [avatarHover, setAvatarHover]         = useState(false);
   const [criandoUser, setCriandoUser]   = useState(false);
+  const [salvandoUser, setSalvandoUser] = useState(false);
   const [editandoNome, setEditandoNome] = useState(null);
   const [novoNome, setNovoNome]         = useState("");
   const [novaMarca, setNovaMarca]       = useState("");
@@ -50,6 +55,8 @@ export default function SegurancaPage() {
   };
 
   const onCriarUsuario = async () => {
+    if (salvandoUser) return;
+    setSalvandoUser(true);
     setNovoUserMsg("wait: Criando usuário...");
     try {
       await handleCriarUsuario(novoUserForm);
@@ -57,6 +64,7 @@ export default function SegurancaPage() {
       setNovoUserForm({ email: "", usuario: "", nome: "", senha: "", perfil: "operador" });
       setTimeout(() => { setNovoUserMsg(""); setCriandoUser(false); }, 3000);
     } catch (err) { setNovoUserMsg("err: " + err.message); }
+    finally { setSalvandoUser(false); }
   };
 
   const inp = { padding: "9px 12px", borderRadius: 10, border: `1px solid ${t.borderMed}`, background: t.inputBg, color: t.text, fontSize: 14, fontFamily: "inherit", outline: "none" };
@@ -207,7 +215,7 @@ export default function SegurancaPage() {
             </div>
           </div>
 
-          <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
+          {podeAdmin && <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
             <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700, color: t.text, display: "flex", alignItems: "center", gap: 8 }}>
               <FontAwesomeIcon icon={faUsers} /> Usuários do Sistema
             </h3>
@@ -232,9 +240,9 @@ export default function SegurancaPage() {
                             {editandoNome?.id === u.id ? (
                               <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                                 <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") { handleRenomearUsuario(u, novoNome); setEditandoNome(null); } if (e.key === "Escape") setEditandoNome(null); }}
+                                  onKeyDown={(e) => { if (e.key === "Enter") { if (novoNome.trim()) { handleRenomearUsuario(u, novoNome); setEditandoNome(null); } } if (e.key === "Escape") setEditandoNome(null); }}
                                   style={{ padding: "4px 8px", borderRadius: 7, border: `1.5px solid ${t.accent}`, background: t.inputBg, color: t.text, fontSize: 13, fontFamily: "inherit", outline: "none", width: 130 }} />
-                                <button onClick={() => { handleRenomearUsuario(u, novoNome); setEditandoNome(null); }} style={{ background: t.accent, border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, padding: "4px 8px", cursor: "pointer", fontFamily: "inherit" }}>✓</button>
+                                <button onClick={() => { if (novoNome.trim()) { handleRenomearUsuario(u, novoNome); setEditandoNome(null); } }} style={{ background: t.accent, border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, padding: "4px 8px", cursor: "pointer", fontFamily: "inherit" }}>✓</button>
                                 <button onClick={() => setEditandoNome(null)} style={{ background: t.bg, border: `1px solid ${t.borderMed}`, borderRadius: 6, color: t.textMuted, fontSize: 11, padding: "4px 8px", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                               </div>
                             ) : (
@@ -296,7 +304,7 @@ export default function SegurancaPage() {
                 <FontAwesomeIcon icon={faLock} /> Somente o <strong style={{ color: t.text }}>Super Admin</strong> pode ativar ou desativar usuários.
               </div>
             )}
-          </div>
+          </div>}
 
           {podeSuperAdmin && (
             <div style={{ background: t.surface, borderRadius: 16, border: `1px solid ${t.border}`, padding: "22px 24px" }}>
@@ -344,7 +352,7 @@ export default function SegurancaPage() {
                       {getMsgText(novoUserMsg)}
                     </div>
                   )}
-                  <Btn onClick={onCriarUsuario} variant="success" t={t}>
+                  <Btn onClick={onCriarUsuario} variant="success" t={t} disabled={salvandoUser}>
                     <FontAwesomeIcon icon={faCircleCheck} style={{ marginRight: 6 }} /> Criar Usuário
                   </Btn>
                 </div>
@@ -365,15 +373,15 @@ export default function SegurancaPage() {
               cols={[
                 { label: "Data",       render: (r) => <span style={{ fontSize: 12, color: t.textFaint }}>{r.data}</span> },
                 { label: "Tipo",       render: (r) => (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: r.tipo === "entrada" ? t.success : t.danger, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <FontAwesomeIcon icon={r.tipo === "entrada" ? faArrowDown : faArrowUp} />
-                    {r.tipo}
+                  <span style={{ fontSize: 12, fontWeight: 700, color: isEntrada(r.tipo) ? t.success : t.danger, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <FontAwesomeIcon icon={TIPO_ICONS[r.tipo] || faArrowUp} />
+                    {TIPO_LABELS[r.tipo] || r.tipo}
                   </span>
                 )},
                 { label: "Item",       render: (r) => <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{r.itemNome}</span> },
                 { label: "Nº Série",   render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.textFaint }}>{r.serial || "—"}</span> },
                 { label: "Patrimônio", render: (r) => <span style={{ fontFamily: "monospace", fontSize: 11, color: t.accent }}>{r.patrimonio || "—"}</span> },
-                { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 700, color: r.tipo === "entrada" ? t.success : t.danger }}>{r.tipo === "entrada" ? "+" : "-"}{r.qty}</span> },
+                { label: "Qtd.",       render: (r) => <span style={{ fontWeight: 700, color: isEntrada(r.tipo) ? t.success : t.danger }}>{isEntrada(r.tipo) ? "+" : "-"}{r.qty}</span> },
                 { label: "Operador",   render: (r) => <span style={{ fontSize: 12, color: t.textFaint }}>{r.usuario}</span> },
               ]}
               rows={historico.slice(0, 10)}
