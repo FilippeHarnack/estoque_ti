@@ -1,49 +1,61 @@
 # 📦 Estoque TI
 
-Sistema para controle e gestão de estoque de equipamentos de TI.
+Sistema completo para gestão de estoque de equipamentos de TI, com automações e integração com chatbot.
 
 ---
 
 ## 🚀 Sobre o projeto
 
-O **Estoque TI** é uma aplicação desenvolvida para facilitar o gerenciamento de ativos de tecnologia, permitindo o controle de entrada, saída e organização de equipamentos.
+O **Estoque TI** é uma aplicação desenvolvida para centralizar o controle de ativos de tecnologia, permitindo o gerenciamento eficiente de equipamentos e automação de processos.
 
-Ideal para equipes de TI que precisam manter controle sobre dispositivos como:
-
-* notebooks
-* monitores
-* periféricos
-* componentes
+Além do controle de estoque, o sistema conta com integrações externas para otimizar fluxos operacionais, como notificações e automações via chatbot.
 
 ---
 
-## ⚙️ Funcionalidades
+## 🧠 Funcionalidades
 
-* 📥 Cadastro de produtos
-* 📤 Controle de saída de itens
-* 🔄 Atualização de estoque
-* 🔍 Consulta de itens
-* 🏷️ Organização por categorias
+* 📥 Cadastro e gerenciamento de produtos
+* 📤 Controle de saída de equipamentos
+* 🏷️ Filtro por marca e categorias
+* 📊 Geração de relatórios (Excel)
+* 🤖 Integração com chatbot (Telegram via n8n)
+* 🔄 Automação de processos
+* 📡 Integração com banco de dados
 
 ---
 
 ## 🛠️ Tecnologias utilizadas
 
-* Node.js
-* JavaScript
-* (adicione aqui: React, Supabase, etc se estiver usando)
+* **Next.js**
+* **React**
+* **Node.js**
+* **Supabase**
+* **n8n**
+* **TypeScript**
+* **PostCSS**
 
 ---
 
 ## 📁 Estrutura do projeto
 
+```bash
+.
+├── app/            # Rotas e páginas (Next.js)
+├── components/     # Componentes reutilizáveis
+├── contexts/       # Context API / estados globais
+├── services/       # Integrações e regras de negócio
+├── lib/            # Utilitários
+├── public/         # Arquivos estáticos
+├── estoque_ti/     # (verificar - possível duplicação)
 ```
-estoque_ti/
-├── src/
-├── public/
-├── package.json
-└── README.md
-```
+
+---
+
+## ⚙️ Integrações
+
+* 🤖 Chatbot Telegram via n8n
+* 🗄️ Banco de dados via Supabase
+* 📄 Exportação de dados em Excel
 
 ---
 
@@ -57,15 +69,7 @@ git clone https://github.com/FilippeHarnack/estoque_ti.git
 
 ---
 
-### 2. Acessar a pasta
-
-```bash
-cd estoque_ti
-```
-
----
-
-### 3. Instalar dependências
+### 2. Instalar dependências
 
 ```bash
 npm install
@@ -73,34 +77,34 @@ npm install
 
 ---
 
-### 4. Rodar o projeto
+### 3. Rodar o projeto
 
 ```bash
 npm run dev
 ```
 
-ou
-
-```bash
-npm start
-```
-
 ---
 
-## 🌐 Deploy
+## 🔐 Variáveis de ambiente
 
-(Adicione aqui o link quando publicar o projeto)
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
 
 ---
 
 ## 📌 Melhorias futuras
 
-* [ ] Autenticação de usuários
-* [ ] Dashboard com métricas
-* [ ] Integração com API
-* [ ] Alertas de estoque baixo
+* [ ] Sistema de autenticação
+* [ ] Dashboard com métricas avançadas
+* [ ] Controle de permissões por usuário
+* [ ] Notificações em tempo real
+* [ ] Melhorias na UI/UX
 
----
+
 
 ## 👨‍💻 Autor
 
