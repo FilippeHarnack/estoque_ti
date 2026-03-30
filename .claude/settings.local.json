@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /c/@dev/estoque_ti/estoque_ti/app/\\\\\\(app\\\\\\))",
+      "Bash(node -e \":*)",
+      "Bash(grep -r \"csv\\\\|CSV\\\\|download\\\\|Download\\\\|relatorio\\\\|relatório\" c:@devestoque_tiestoque_ti --include=*.js --include=*.jsx --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=.next)",
+      "Bash(npm install:*)"
+    ]
+  }
+}
